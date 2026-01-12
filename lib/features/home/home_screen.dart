@@ -94,31 +94,18 @@ class HomeScreen extends StatelessWidget {
   onTap: () => context.go('/gaming'),
 ),
 
-                      const _HomeCard(
-                        title: 'Food',
-                        icon: Icons.restaurant,
-                        tint: Colors.cyan,
-                      ),
-                      const _HomeCard(
-                        title: 'Beverage',
-                        icon: Icons.wine_bar,
-                        tint: Colors.cyan,
-                      ),
-                      const _HomeCard(
-                        title: 'Retail',
-                        icon: Icons.shopping_bag,
-                        tint: Colors.cyan,
-                      ),
-                      const _HomeCard(
-                        title: 'Accommodation',
-                        icon: Icons.bed,
-                        tint: Colors.cyan,
-                      ),
-                      const _HomeCard(
-                        title: 'State of Play',
-                        icon: Icons.speed,
-                        tint: Colors.purple,
-                      ),
+                     _HomeCard(title: 'Food', icon: Icons.restaurant, tint: Colors.cyan, onTap: () => context.go('/food')),
+_HomeCard(title: 'Beverage', icon: Icons.wine_bar, tint: Colors.cyan, onTap: () => context.go('/beverage')),
+_HomeCard(title: 'Retail', icon: Icons.shopping_bag, tint: Colors.cyan, onTap: () => context.go('/retail')),
+_HomeCard(title: 'Accommodation', icon: Icons.bed, tint: Colors.cyan, onTap: () => context.go('/accommodation')),
+
+                  _HomeCard(
+  title: 'State of Play',
+  icon: Icons.speed,
+  tint: Colors.purple,
+  onTap: () => context.go('/state-of-play'),
+),
+
                       const _HomeCard(
                         title: 'After Action',
                         icon: Icons.checklist,
