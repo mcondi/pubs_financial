@@ -1,8 +1,10 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../app/providers.dart';
+import '../../app/models/venue.dart';
+import '../../app/venues_provider.dart';
 
 import 'gaming_repository.dart';
 
@@ -43,201 +45,219 @@ class _GamingScreenState extends ConsumerState<GamingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final venueId = ref.watch(gamingVenueIdProvider);
-    final async = ref.watch(gamingDataProvider(_GamingArgs(venueId, _weekEndOverride)));
+    final venuesAsync = ref.watch(venuesProvider);
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
+    return venuesAsync.when(
+      loading: () => const Scaffold(
         backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        title: const Text('Gaming', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 10),
-          child: _BackCircleButton(onTap: () => context.go('/')),
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(e.toString(), textAlign: TextAlign.center),
+          ),
         ),
       ),
-      body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) {
-          final msg = _extractMessage(err.toString());
-          final noData = msg.toLowerCase().contains('no gaming data available');
-
-          if (noData) {
-            return _EmptyState(
-              message: 'No gaming data is available for this venue/week.',
-              onRetry: () => _refresh(venueId),
-            );
-          }
-
-          return _ErrorState(
-            message: _sanitizeError(msg),
-            onRetry: () => _refresh(venueId),
+      data: (venues) {
+        if (venues.isEmpty) {
+          return const Scaffold(
+            backgroundColor: Colors.white,
+            body: Center(child: Text('No venues available.')),
           );
-        },
-        data: (json) {
-          // DTO keys like iOS GamingSummaryDTO
-          final venueName = (json['venueName'] as String?) ?? 'Venue';
-          final weekEnd = (json['weekEnd'] as String?) ?? '';
-          final prevWeekEnd = (json['prevWeekEnd'] as String?) ?? '';
-          final nextWeekEnd = (json['nextWeekEnd'] as String?) ?? '';
+        }
 
-          final turnoverCurrent = _asDouble(json['turnoverCurrent']) ?? 0;
-          final turnoverTrend = _asDouble(json['turnoverTrend']) ?? 0;
+        final venueId = ref.watch(gamingVenueIdProvider);
+        final safeVenueId = venues.any((v) => v.id == venueId)
+            ? venueId
+            : venues.firstWhere((v) => v.id == groupVenueId, orElse: () => venues.first).id;
 
-          final winsCurrent = _asDouble(json['winsCurrent']) ?? 0;
-          final winsTrend = _asDouble(json['winsTrend']) ?? 0;
+        if (safeVenueId != venueId) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(gamingVenueIdProvider.notifier).state = safeVenueId;
+          });
+        }
 
-          // iOS DTO has rtpCurrent as percent (e.g. 92.3) but UI computes RTP = wins/turnover.
-          // We'll follow the SwiftUI view logic (wins/turnover), not the raw rtp field.
-          final avgBetCurrent = _asDouble(json['avgBetCurrent']) ?? 0;
-          final avgBetTrend = _asDouble(json['avgBetTrend']) ?? 0;
+        final async = ref.watch(gamingDataProvider(_GamingArgs(safeVenueId, _weekEndOverride)));
 
-          final canPrev = prevWeekEnd.isNotEmpty;
-          final canNext = nextWeekEnd.isNotEmpty;
-
-          // Derived:
-          final netCurrent = turnoverCurrent - winsCurrent;
-          final netTrend = turnoverTrend - winsTrend;
-
-          final holdCurrent = turnoverCurrent != 0 ? (netCurrent / turnoverCurrent) : 0.0;
-          final holdTrend = turnoverTrend != 0 ? (netTrend / turnoverTrend) : 0.0;
-
-          final rtpCurrent = turnoverCurrent != 0 ? (winsCurrent / turnoverCurrent) : 0.0;
-          final rtpTrend = turnoverTrend != 0 ? (winsTrend / turnoverTrend) : 0.0;
-
-          return RefreshIndicator(
-            onRefresh: () async => _refresh(venueId),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-              children: [
-                // Header bar (Venue + arrows)
-                _HeaderBar(
-                  selectedVenueId: venueId,
-                  selectedVenueName: venueName,
-                  canPrev: canPrev,
-                  canNext: canNext,
-                  onPickVenue: (id) {
-                    ref.read(gamingVenueIdProvider.notifier).state = id;
-                    setState(() => _weekEndOverride = null);
-                  },
-                  onPrev: !canPrev
-                      ? null
-                      : () => setState(() => _weekEndOverride = _toDateOnly(prevWeekEnd)),
-                  onNext: !canNext
-                      ? null
-                      : () => setState(() => _weekEndOverride = _toDateOnly(nextWeekEnd)),
-                ),
-
-                const SizedBox(height: 10),
-
-                if (weekEnd.isNotEmpty)
-                  Center(
-                    child: Text(
-                      'Week ending ${_prettyWeekEnd(weekEnd)}',
-                      style: TextStyle(color: Colors.black.withValues(alpha: 0.45), fontSize: 13),
-                    ),
-                  ),
-
-                const SizedBox(height: 14),
-
-                // Executive snapshot card
-                _GamingSnapshotCard(
-                  turnoverCurrent: turnoverCurrent,
-                  turnoverTrend: turnoverTrend,
-                  netCurrent: netCurrent,
-                  netTrend: netTrend,
-                  rtpCurrent: rtpCurrent,
-                  rtpTrend: rtpTrend,
-                ),
-
-                const SizedBox(height: 14),
-
-                // 2-col grid of metric cards
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final w = constraints.maxWidth;
-                    final gap = 12.0;
-                    final cardW = (w - gap) / 2;
-
-                    return Wrap(
-                      spacing: gap,
-                      runSpacing: gap,
-                      children: [
-                        SizedBox(
-                          width: cardW,
-                          child: _MetricCardCurrency(
-                            title: 'Turnover',
-                            current: turnoverCurrent,
-                            trend: turnoverTrend,
-                            decimals: 0,
-                            higherIsBetter: true,
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardW,
-                          child: _MetricCardCurrency(
-                            title: 'Wins',
-                            current: winsCurrent,
-                            trend: winsTrend,
-                            decimals: 0,
-                            higherIsBetter: true,
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardW,
-                          child: _MetricCardCurrency(
-                            title: 'Net',
-                            current: netCurrent,
-                            trend: netTrend,
-                            decimals: 0,
-                            higherIsBetter: true,
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardW,
-                          child: _MetricCardPercent(
-                            title: 'RTP',
-                            current: rtpCurrent,
-                            trend: rtpTrend,
-                            higherIsBetter: true,
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardW,
-                          child: _MetricCardCurrency(
-                            title: 'Average Bet',
-                            current: avgBetCurrent,
-                            trend: avgBetTrend,
-                            decimals: 2,
-                            higherIsBetter: true,
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 14),
-
-                // Insights
-                _InsightsCard(
-                  turnoverCurrent: turnoverCurrent,
-                  turnoverTrend: turnoverTrend,
-                  netCurrent: netCurrent,
-                  netTrend: netTrend,
-                  holdCurrent: holdCurrent,
-                  holdTrend: holdTrend,
-                  rtpCurrent: rtpCurrent,
-                  rtpTrend: rtpTrend,
-                ),
-              ],
+        return Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.white,
+            elevation: 0,
+            centerTitle: true,
+            title: const Text('Gaming', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
+            leading: Padding(
+              padding: const EdgeInsets.only(left: 10),
+              child: _BackCircleButton(onTap: () => context.go('/')),
             ),
-          );
-        },
-      ),
+          ),
+          body: async.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) {
+              final msg = _extractMessage(err.toString());
+              final noData = msg.toLowerCase().contains('no gaming data available');
+
+              if (noData) {
+                return _EmptyState(
+                  message: 'No gaming data is available for this venue/week.',
+                  onRetry: () => _refresh(safeVenueId),
+                );
+              }
+
+              return _ErrorState(
+                message: _sanitizeError(msg),
+                onRetry: () => _refresh(safeVenueId),
+              );
+            },
+            data: (json) {
+              final venueName = (json['venueName'] as String?) ??
+                  venues.firstWhere((v) => v.id == safeVenueId, orElse: () => venues.first).name;
+              final weekEnd = (json['weekEnd'] as String?) ?? '';
+              final prevWeekEnd = (json['prevWeekEnd'] as String?) ?? '';
+              final nextWeekEnd = (json['nextWeekEnd'] as String?) ?? '';
+
+              final turnoverCurrent = _asDouble(json['turnoverCurrent']) ?? 0;
+              final turnoverTrend = _asDouble(json['turnoverTrend']) ?? 0;
+
+              final winsCurrent = _asDouble(json['winsCurrent']) ?? 0;
+              final winsTrend = _asDouble(json['winsTrend']) ?? 0;
+
+              final avgBetCurrent = _asDouble(json['avgBetCurrent']) ?? 0;
+              final avgBetTrend = _asDouble(json['avgBetTrend']) ?? 0;
+
+              final canPrev = prevWeekEnd.isNotEmpty;
+              final canNext = nextWeekEnd.isNotEmpty;
+
+              final netCurrent = turnoverCurrent - winsCurrent;
+              final netTrend = turnoverTrend - winsTrend;
+
+              final holdCurrent = turnoverCurrent != 0 ? (netCurrent / turnoverCurrent) : 0.0;
+              final holdTrend = turnoverTrend != 0 ? (netTrend / turnoverTrend) : 0.0;
+
+              final rtpCurrent = turnoverCurrent != 0 ? (winsCurrent / turnoverCurrent) : 0.0;
+              final rtpTrend = turnoverTrend != 0 ? (winsTrend / turnoverTrend) : 0.0;
+
+              return RefreshIndicator(
+                onRefresh: () async => _refresh(safeVenueId),
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                  children: [
+                    _HeaderBar(
+                      venues: venues,
+                      selectedVenueId: safeVenueId,
+                      selectedVenueName: venueName,
+                      canPrev: canPrev,
+                      canNext: canNext,
+                      onPickVenue: (id) {
+                        ref.read(gamingVenueIdProvider.notifier).state = id;
+                        setState(() => _weekEndOverride = null);
+                      },
+                      onPrev: !canPrev ? null : () => setState(() => _weekEndOverride = _toDateOnly(prevWeekEnd)),
+                      onNext: !canNext ? null : () => setState(() => _weekEndOverride = _toDateOnly(nextWeekEnd)),
+                    ),
+                    const SizedBox(height: 10),
+                    if (weekEnd.isNotEmpty)
+                      Center(
+                        child: Text(
+                          'Week ending ${_prettyWeekEnd(weekEnd)}',
+                          style: TextStyle(color: Colors.black.withValues(alpha: 0.45), fontSize: 13),
+                        ),
+                      ),
+                    const SizedBox(height: 14),
+                    _GamingSnapshotCard(
+                      turnoverCurrent: turnoverCurrent,
+                      turnoverTrend: turnoverTrend,
+                      netCurrent: netCurrent,
+                      netTrend: netTrend,
+                      rtpCurrent: rtpCurrent,
+                      rtpTrend: rtpTrend,
+                    ),
+                    const SizedBox(height: 14),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final w = constraints.maxWidth;
+                        final gap = 12.0;
+                        final cardW = (w - gap) / 2;
+
+                        return Wrap(
+                          spacing: gap,
+                          runSpacing: gap,
+                          children: [
+                            SizedBox(
+                              width: cardW,
+                              child: _MetricCardCurrency(
+                                title: 'Turnover',
+                                current: turnoverCurrent,
+                                trend: turnoverTrend,
+                                decimals: 0,
+                                higherIsBetter: true,
+                              ),
+                            ),
+                            SizedBox(
+                              width: cardW,
+                              child: _MetricCardCurrency(
+                                title: 'Wins',
+                                current: winsCurrent,
+                                trend: winsTrend,
+                                decimals: 0,
+                                higherIsBetter: true,
+                              ),
+                            ),
+                            SizedBox(
+                              width: cardW,
+                              child: _MetricCardCurrency(
+                                title: 'Net',
+                                current: netCurrent,
+                                trend: netTrend,
+                                decimals: 0,
+                                higherIsBetter: true,
+                              ),
+                            ),
+                            SizedBox(
+                              width: cardW,
+                              child: _MetricCardPercent(
+                                title: 'RTP',
+                                current: rtpCurrent,
+                                trend: rtpTrend,
+                                higherIsBetter: true,
+                              ),
+                            ),
+                            SizedBox(
+                              width: cardW,
+                              child: _MetricCardCurrency(
+                                title: 'Average Bet',
+                                current: avgBetCurrent,
+                                trend: avgBetTrend,
+                                decimals: 2,
+                                higherIsBetter: true,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    _InsightsCard(
+                      turnoverCurrent: turnoverCurrent,
+                      turnoverTrend: turnoverTrend,
+                      netCurrent: netCurrent,
+                      netTrend: netTrend,
+                      holdCurrent: holdCurrent,
+                      holdTrend: holdTrend,
+                      rtpCurrent: rtpCurrent,
+                      rtpTrend: rtpTrend,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -272,6 +292,7 @@ class _BackCircleButton extends StatelessWidget {
 
 class _HeaderBar extends StatelessWidget {
   const _HeaderBar({
+    required this.venues,
     required this.selectedVenueId,
     required this.selectedVenueName,
     required this.canPrev,
@@ -281,6 +302,7 @@ class _HeaderBar extends StatelessWidget {
     required this.onNext,
   });
 
+  final List<Venue> venues;
   final int selectedVenueId;
   final String selectedVenueName;
   final bool canPrev;
@@ -291,8 +313,6 @@ class _HeaderBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final venues = _venueList(); // swap later with shared venue provider/list
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -319,7 +339,7 @@ class _HeaderBar extends StatelessWidget {
                       child: Text(
                         selectedVenueName,
                         style: const TextStyle(
-                          color: Color(0xFF1976D2), // iOS-like blue
+                          color: Color(0xFF1976D2),
                           fontSize: 18,
                           fontWeight: FontWeight.w500,
                         ),
@@ -335,10 +355,7 @@ class _HeaderBar extends StatelessWidget {
             const SizedBox(width: 14),
             IconButton(
               onPressed: onPrev,
-              icon: Icon(
-                Icons.chevron_left,
-                color: Colors.white,
-              ),
+              icon: const Icon(Icons.chevron_left, color: Colors.white),
               style: IconButton.styleFrom(
                 backgroundColor: canPrev ? const Color(0xFF1976D2) : Colors.grey.withValues(alpha: 0.35),
                 fixedSize: const Size(44, 44),
@@ -361,6 +378,9 @@ class _HeaderBar extends StatelessWidget {
     );
   }
 }
+
+// (rest of your existing Gaming widgets/helpers remain unchanged)
+
 
 class _GamingSnapshotCard extends StatelessWidget {
   const _GamingSnapshotCard({

@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/models/venue.dart';
+import '../../app/venues_provider.dart';
+
 import 'financial_repository.dart';
 
 const int groupVenueId = 26;
@@ -47,98 +50,126 @@ class _FinancialScreenState extends ConsumerState<FinancialScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final venueId = ref.watch(financialVenueIdProvider);
-    final async = ref.watch(financialDataProvider(_FinancialArgs(venueId, _weekEndOverride)));
+    final venuesAsync = ref.watch(venuesProvider);
 
-    return Scaffold(
-      backgroundColor: _bg,
-      appBar: AppBar(
+    return venuesAsync.when(
+      loading: () => const Scaffold(
         backgroundColor: _bg,
-        elevation: 0,
-        centerTitle: true,
-        title: const Text(
-          'Financial',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: Colors.white),
-          onPressed: () => context.go('/'),
-        ),
+        body: Center(child: CircularProgressIndicator()),
       ),
-      body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => _errorView(err.toString()),
-        data: (json) {
-          final venueName = (json['venueName'] as String?) ?? 'Venue';
-          final weekEndIso = (json['weekEnd'] as String?) ?? '';
-          final prevWeekEndIso = (json['prevWeekEnd'] as String?) ?? '';
-          final nextWeekEndIso = (json['nextWeekEnd'] as String?) ?? '';
-
-          final canPrev = prevWeekEndIso.isNotEmpty;
-          final canNext = nextWeekEndIso.isNotEmpty;
-
-          final metrics = (json['metrics'] as List?)
-                  ?.whereType<Map>()
-                  .map((e) => e.cast<String, dynamic>())
-                  .toList() ??
-              const <Map<String, dynamic>>[];
-
-          return RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(financialDataProvider);
-              await ref.read(financialDataProvider(_FinancialArgs(venueId, _weekEndOverride)).future);
-            },
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-              children: [
-                const Text(
-                  'Financial',
-                  style: TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800),
-                ),
-                Text(
-                  'Performance Gauges',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14),
-                ),
-                const SizedBox(height: 14),
-
-                _venuePicker(
-                  selectedVenueId: venueId,
-                  selectedVenueName: venueName,
-                  canPrev: canPrev,
-                  canNext: canNext,
-                  onPickVenue: (id) {
-                    ref.read(financialVenueIdProvider.notifier).state = id;
-                    setState(() => _weekEndOverride = null);
-                  },
-                  onPrev: !canPrev
-                      ? null
-                      : () => setState(() => _weekEndOverride = _toDateOnly(prevWeekEndIso)),
-                  onNext: !canNext
-                      ? null
-                      : () => setState(() => _weekEndOverride = _toDateOnly(nextWeekEndIso)),
-                ),
-
-                if (weekEndIso.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Center(
-                    child: Text(
-                      'Week ending ${_prettyWeekEnd(weekEndIso)}',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
-                    ),
-                  ),
-                ],
-
-                const SizedBox(height: 12),
-
-                for (final m in metrics) ...[
-                  _gaugeMetricCard(m),
-                  const SizedBox(height: 12),
-                ],
-              ],
+      error: (e, _) => Scaffold(
+        backgroundColor: _bg,
+        body: _errorView(e.toString()),
+      ),
+      data: (venues) {
+        if (venues.isEmpty) {
+          return const Scaffold(
+            backgroundColor: _bg,
+            body: Center(
+              child: Text('No venues available.', style: TextStyle(color: Colors.white)),
             ),
           );
-        },
-      ),
+        }
+
+        final currentId = ref.watch(financialVenueIdProvider);
+        final safeVenueId = venues.any((v) => v.id == currentId)
+            ? currentId
+            : venues.firstWhere((v) => v.id == groupVenueId, orElse: () => venues.first).id;
+
+        if (safeVenueId != currentId) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(financialVenueIdProvider.notifier).state = safeVenueId;
+          });
+        }
+
+        final async = ref.watch(financialDataProvider(_FinancialArgs(safeVenueId, _weekEndOverride)));
+
+        return Scaffold(
+          backgroundColor: _bg,
+          appBar: AppBar(
+            backgroundColor: _bg,
+            elevation: 0,
+            centerTitle: true,
+            title: const Text(
+              'Financial',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+            ),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: Colors.white),
+              onPressed: () => context.go('/'),
+            ),
+          ),
+          body: async.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => _errorView(err.toString()),
+            data: (json) {
+              final venueName = (json['venueName'] as String?) ??
+                  venues.firstWhere((v) => v.id == safeVenueId, orElse: () => venues.first).name;
+
+              final weekEndIso = (json['weekEnd'] as String?) ?? '';
+              final prevWeekEndIso = (json['prevWeekEnd'] as String?) ?? '';
+              final nextWeekEndIso = (json['nextWeekEnd'] as String?) ?? '';
+
+              final canPrev = prevWeekEndIso.isNotEmpty;
+              final canNext = nextWeekEndIso.isNotEmpty;
+
+              final metrics = (json['metrics'] as List?)
+                      ?.whereType<Map>()
+                      .map((e) => e.cast<String, dynamic>())
+                      .toList() ??
+                  const <Map<String, dynamic>>[];
+
+              return RefreshIndicator(
+                onRefresh: () async {
+                  ref.invalidate(financialDataProvider);
+                  await ref.read(financialDataProvider(_FinancialArgs(safeVenueId, _weekEndOverride)).future);
+                },
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                  children: [
+                    const Text(
+                      'Financial',
+                      style: TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800),
+                    ),
+                    Text(
+                      'Performance Gauges',
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14),
+                    ),
+                    const SizedBox(height: 14),
+                    _venuePicker(
+                      venues: venues,
+                      selectedVenueId: safeVenueId,
+                      selectedVenueName: venueName,
+                      canPrev: canPrev,
+                      canNext: canNext,
+                      onPickVenue: (id) {
+                        ref.read(financialVenueIdProvider.notifier).state = id;
+                        setState(() => _weekEndOverride = null);
+                      },
+                      onPrev: !canPrev ? null : () => setState(() => _weekEndOverride = _toDateOnly(prevWeekEndIso)),
+                      onNext: !canNext ? null : () => setState(() => _weekEndOverride = _toDateOnly(nextWeekEndIso)),
+                    ),
+                    if (weekEndIso.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Center(
+                        child: Text(
+                          'Week ending ${_prettyWeekEnd(weekEndIso)}',
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    for (final m in metrics) ...[
+                      _gaugeMetricCard(m),
+                      const SizedBox(height: 12),
+                    ],
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -151,9 +182,8 @@ class _FinancialScreenState extends ConsumerState<FinancialScreen> {
     );
   }
 
-  // ------- Venue picker (same as Snapshot) -------
-
   Widget _venuePicker({
+    required List<Venue> venues,
     required int selectedVenueId,
     required String selectedVenueName,
     required bool canPrev,
@@ -162,8 +192,6 @@ class _FinancialScreenState extends ConsumerState<FinancialScreen> {
     required VoidCallback? onPrev,
     required VoidCallback? onNext,
   }) {
-    final venues = _venueList(); // swap later with your real venue list provider/API
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -222,8 +250,6 @@ class _FinancialScreenState extends ConsumerState<FinancialScreen> {
       ],
     );
   }
-
-  // ------- Metric card -------
 
   Widget _gaugeMetricCard(Map<String, dynamic> m) {
     final name = (m['metric'] as String?) ?? (m['name'] as String?) ?? 'Metric';
@@ -384,8 +410,6 @@ class _GaugeRingPainter extends CustomPainter {
   }
 }
 
-// helpers
-
 double? _asDouble(dynamic v) {
   if (v == null) return null;
   if (v is num) return v.toDouble();
@@ -426,19 +450,3 @@ String _prettyWeekEnd(String iso) {
   final mon = (m >= 1 && m <= 12) ? months[m - 1] : parts[1];
   return '$day $mon $y';
 }
-
-class _Venue {
-  final int id;
-  final String name;
-  const _Venue(this.id, this.name);
-}
-
-List<_Venue> _venueList() => const [
-  _Venue(26, 'Group'),
-  _Venue(1, 'Lion Hotel'),
-  _Venue(2, 'Cross Keys Hotel'),
-  _Venue(3, 'Saracens Head Hotel'),
-  _Venue(4, 'Cremorne Hotel'),
-  _Venue(5, 'Alma Tavern'),
-  _Venue(6, 'Little Bang Brewery'),
-];

@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
+import '../../app/models/venue.dart';
+import '../../app/venues_provider.dart';
 
 const int groupVenueId = 26;
 
@@ -49,212 +51,230 @@ class _SnapshotScreenState extends ConsumerState<SnapshotScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final venueId = ref.watch(snapshotVenueIdProvider);
-    final async = ref.watch(snapshotDataProvider(_SnapshotArgs(venueId, _weekEndOverride)));
+    final venuesAsync = ref.watch(venuesProvider);
 
-    return Scaffold(
-      backgroundColor: _bg,
-      appBar: AppBar(
-  backgroundColor: _bg,
-  elevation: 0,
-  centerTitle: true,
-  title: const Text(
-    'Snapshot',
-    style: TextStyle(
-      color: Colors.white,
-      fontWeight: FontWeight.w600,
-    ),
-  ),
-  leading: IconButton(
-    icon: const Icon(
-      Icons.arrow_back_ios_new,
-      size: 20,
-      color: Colors.white,
-    ),
-    onPressed: () => context.go('/'),
-  ),
-),
-
-      body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => _errorView(err.toString()),
-        data: (json) {
-          final venueName = (json['venueName'] as String?) ?? 'Venue';
-          final weekEndIso = (json['weekEnd'] as String?) ?? '';
-          final prevWeekEndIso = (json['prevWeekEnd'] as String?) ?? '';
-          final nextWeekEndIso = (json['nextWeekEnd'] as String?) ?? '';
-
-          final canPrev = prevWeekEndIso.isNotEmpty;
-          final canNext = nextWeekEndIso.isNotEmpty;
-
-          final metrics = (json['metrics'] as List?)
-                  ?.whereType<Map>()
-                  .map((e) => e.cast<String, dynamic>())
-                  .toList() ??
-              const <Map<String, dynamic>>[];
-
-          final categories = (json['categories'] as List?)
-                  ?.whereType<Map>()
-                  .map((e) => e.cast<String, dynamic>())
-                  .toList() ??
-              const <Map<String, dynamic>>[];
-
-          final notes = (json['notes'] is Map)
-              ? (json['notes'] as Map).cast<String, dynamic>()
-              : null;
-          final notesView = notes == null ? null : _notesViewDataFromJson(notes);
-
-          final weeklyOp = _pickMap(json, ['weeklyOperational', 'weekly_operational']);
-          final ytdOp = _pickMap(json, ['ytdOperational', 'ytd_operational']);
-
-          final weeklySummary = _buildOperationalSummary(
-            isYtd: false,
-            op: weeklyOp,
-            metrics: metrics,
+    return venuesAsync.when(
+      loading: () => const Scaffold(
+        backgroundColor: _bg,
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => Scaffold(
+        backgroundColor: _bg,
+        body: _errorView(e.toString()),
+      ),
+      data: (venues) {
+        if (venues.isEmpty) {
+          return const Scaffold(
+            backgroundColor: _bg,
+            body: Center(child: Text('No venues available.', style: TextStyle(color: Colors.white))),
           );
+        }
 
-          final ytdSummary = _buildYtdSummaryLikeIos(
-            weeklyOp: weeklyOp,
-            ytdOp: ytdOp,
-            metrics: metrics,
-          );
+        final venueId = ref.watch(snapshotVenueIdProvider);
+        final safeVenueId = venues.any((v) => v.id == venueId)
+            ? venueId
+            : venues.firstWhere((v) => v.id == groupVenueId, orElse: () => venues.first).id;
 
-          return RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(snapshotDataProvider);
-              await ref
-                  .read(snapshotDataProvider(_SnapshotArgs(venueId, _weekEndOverride)).future);
-            },
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-              children: [
-                const Text(
-                  'Snapshot',
-                  style: TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800),
-                ),
-                Text(
-                  'Weekly and YTD performance',
-                  style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14),
-                ),
-                const SizedBox(height: 14),
+        if (safeVenueId != venueId) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(snapshotVenueIdProvider.notifier).state = safeVenueId;
+          });
+        }
 
-                _venuePicker(
-                  selectedVenueId: venueId,
-                  selectedVenueName: venueName,
-                  canPrev: canPrev,
-                  canNext: canNext,
-                  onPickVenue: (id) {
-                    ref.read(snapshotVenueIdProvider.notifier).state = id;
-                    setState(() => _weekEndOverride = null);
-                  },
-                  onPrev: !canPrev
-                      ? null
-                      : () => setState(() => _weekEndOverride = _toDateOnly(prevWeekEndIso)),
-                  onNext: !canNext
-                      ? null
-                      : () => setState(() => _weekEndOverride = _toDateOnly(nextWeekEndIso)),
-                ),
+        final async = ref.watch(snapshotDataProvider(_SnapshotArgs(safeVenueId, _weekEndOverride)));
 
-                if (weekEndIso.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Center(
-                    child: Text(
-                      'Week ending ${_prettyWeekEnd(weekEndIso)}',
-                      style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+        return Scaffold(
+          backgroundColor: _bg,
+          appBar: AppBar(
+            backgroundColor: _bg,
+            elevation: 0,
+            centerTitle: true,
+            title: const Text(
+              'Snapshot',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+            ),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: Colors.white),
+              onPressed: () => context.go('/'),
+            ),
+          ),
+          body: async.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => _errorView(err.toString()),
+            data: (json) {
+              final venueName = (json['venueName'] as String?) ??
+                  venues.firstWhere((v) => v.id == safeVenueId, orElse: () => venues.first).name;
+
+              final weekEndIso = (json['weekEnd'] as String?) ?? '';
+              final prevWeekEndIso = (json['prevWeekEnd'] as String?) ?? '';
+              final nextWeekEndIso = (json['nextWeekEnd'] as String?) ?? '';
+
+              final canPrev = prevWeekEndIso.isNotEmpty;
+              final canNext = nextWeekEndIso.isNotEmpty;
+
+              final metrics = (json['metrics'] as List?)
+                      ?.whereType<Map>()
+                      .map((e) => e.cast<String, dynamic>())
+                      .toList() ??
+                  const <Map<String, dynamic>>[];
+
+              final categories = (json['categories'] as List?)
+                      ?.whereType<Map>()
+                      .map((e) => e.cast<String, dynamic>())
+                      .toList() ??
+                  const <Map<String, dynamic>>[];
+
+              final notes = (json['notes'] is Map) ? (json['notes'] as Map).cast<String, dynamic>() : null;
+              final notesView = notes == null ? null : _notesViewDataFromJson(notes);
+
+              final weeklyOp = _pickMap(json, ['weeklyOperational', 'weekly_operational']);
+              final ytdOp = _pickMap(json, ['ytdOperational', 'ytd_operational']);
+
+              final weeklySummary = _buildOperationalSummary(
+                isYtd: false,
+                op: weeklyOp,
+                metrics: metrics,
+              );
+
+              final ytdSummary = _buildYtdSummaryLikeIos(
+                weeklyOp: weeklyOp,
+                ytdOp: ytdOp,
+                metrics: metrics,
+              );
+
+              return RefreshIndicator(
+                onRefresh: () async {
+                  ref.invalidate(snapshotDataProvider);
+                  await ref.read(snapshotDataProvider(_SnapshotArgs(safeVenueId, _weekEndOverride)).future);
+                },
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                  children: [
+                    const Text(
+                      'Snapshot',
+                      style: TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800),
                     ),
-                  ),
-                ],
+                    Text(
+                      'Weekly and YTD performance',
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14),
+                    ),
+                    const SizedBox(height: 14),
 
-                const SizedBox(height: 12),
+                    _venuePicker(
+                      venues: venues,
+                      selectedVenueId: safeVenueId,
+                      selectedVenueName: venueName,
+                      canPrev: canPrev,
+                      canNext: canNext,
+                      onPickVenue: (id) {
+                        ref.read(snapshotVenueIdProvider.notifier).state = id;
+                        setState(() => _weekEndOverride = null);
+                      },
+                      onPrev: !canPrev ? null : () => setState(() => _weekEndOverride = _toDateOnly(prevWeekEndIso)),
+                      onNext: !canNext ? null : () => setState(() => _weekEndOverride = _toDateOnly(nextWeekEndIso)),
+                    ),
 
-                if (weeklySummary != null) ...[
-                  _budgetPiesCard(
-                    title: 'Weekly vs budget',
-                    revenueLabel: 'Revenue',
-                    revenueActual: weeklySummary.totalRevenueValue,
-                    revenueBudget: weeklySummary.revenueBudgetValue,
-                    revenueRatio: weeklySummary.revenueVsBudgetRatio,
-                    ebitdaLabel: 'EBITDA',
-                    ebitdaActual: weeklySummary.ebitdaValue,
-                    ebitdaBudget: weeklySummary.ebitdaBudgetValue,
-                    ebitdaRatio: weeklySummary.ebitdaVsBudgetRatio,
-                  ),
-                  const SizedBox(height: 12),
-                  _snapshotDetailCard(
-                    title: 'Weekly snapshot',
-                    revenueSublabel: 'Revenue',
-                    ebitdaSublabel: 'EBITDA',
-                    s: weeklySummary,
-                    isYtd: false,
-                  ),
-                  const SizedBox(height: 12),
-                  _categoryMarginsCard(
-                    title: 'Weekly margins',
-                    categories: categories,
-                    isYtd: false,
-                  ),
-                  const SizedBox(height: 12),
-                ],
-
-                if (ytdSummary != null) ...[
-                  _budgetPiesCard(
-                    title: 'YTD vs budget',
-                    revenueLabel: 'Revenue (YTD)',
-                    revenueActual: ytdSummary.totalRevenueValue,
-                    revenueBudget: ytdSummary.revenueBudgetValue,
-                    revenueRatio: ytdSummary.revenueVsBudgetRatio,
-                    ebitdaLabel: 'EBITDA (YTD)',
-                    ebitdaActual: ytdSummary.ebitdaValue,
-                    ebitdaBudget: ytdSummary.ebitdaBudgetValue,
-                    ebitdaRatio: ytdSummary.ebitdaVsBudgetRatio,
-                  ),
-                  const SizedBox(height: 12),
-                  _snapshotDetailCard(
-                    title: 'YTD snapshot',
-                    revenueSublabel: 'Revenue (YTD)',
-                    ebitdaSublabel: 'EBITDA (YTD)',
-                    s: ytdSummary,
-                    isYtd: true,
-                  ),
-                  const SizedBox(height: 12),
-                  _categoryMarginsCard(
-                    title: 'YTD margins',
-                    categories: categories,
-                    isYtd: true,
-                  ),
-                  const SizedBox(height: 12),
-                ],
-
-                if (notesView != null) ...[
-                  _notesCard(notesView),
-                  const SizedBox(height: 12),
-                ],
-
-                // Debug JSON toggle (remove later)
-                _card(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextButton(
-                        onPressed: () => setState(() => _showDebug = !_showDebug),
+                    if (weekEndIso.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Center(
                         child: Text(
-                          _showDebug ? 'Hide debug JSON' : 'Show debug JSON',
-                          style: const TextStyle(color: Colors.white),
+                          'Week ending ${_prettyWeekEnd(weekEndIso)}',
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
                         ),
                       ),
-                      if (_showDebug)
-                        Text(
-                          const JsonEncoder.withIndent('  ').convert(json),
-                          style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12),
-                        ),
                     ],
-                  ),
+
+                    const SizedBox(height: 12),
+
+                    if (weeklySummary != null) ...[
+                      _budgetPiesCard(
+                        title: 'Weekly vs budget',
+                        revenueLabel: 'Revenue',
+                        revenueActual: weeklySummary.totalRevenueValue,
+                        revenueBudget: weeklySummary.revenueBudgetValue,
+                        revenueRatio: weeklySummary.revenueVsBudgetRatio,
+                        ebitdaLabel: 'EBITDA',
+                        ebitdaActual: weeklySummary.ebitdaValue,
+                        ebitdaBudget: weeklySummary.ebitdaBudgetValue,
+                        ebitdaRatio: weeklySummary.ebitdaVsBudgetRatio,
+                      ),
+                      const SizedBox(height: 12),
+                      _snapshotDetailCard(
+                        title: 'Weekly snapshot',
+                        revenueSublabel: 'Revenue',
+                        ebitdaSublabel: 'EBITDA',
+                        s: weeklySummary,
+                        isYtd: false,
+                      ),
+                      const SizedBox(height: 12),
+                      _categoryMarginsCard(
+                        title: 'Weekly margins',
+                        categories: categories,
+                        isYtd: false,
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    if (ytdSummary != null) ...[
+                      _budgetPiesCard(
+                        title: 'YTD vs budget',
+                        revenueLabel: 'Revenue (YTD)',
+                        revenueActual: ytdSummary.totalRevenueValue,
+                        revenueBudget: ytdSummary.revenueBudgetValue,
+                        revenueRatio: ytdSummary.revenueVsBudgetRatio,
+                        ebitdaLabel: 'EBITDA (YTD)',
+                        ebitdaActual: ytdSummary.ebitdaValue,
+                        ebitdaBudget: ytdSummary.ebitdaBudgetValue,
+                        ebitdaRatio: ytdSummary.ebitdaVsBudgetRatio,
+                      ),
+                      const SizedBox(height: 12),
+                      _snapshotDetailCard(
+                        title: 'YTD snapshot',
+                        revenueSublabel: 'Revenue (YTD)',
+                        ebitdaSublabel: 'EBITDA (YTD)',
+                        s: ytdSummary,
+                        isYtd: true,
+                      ),
+                      const SizedBox(height: 12),
+                      _categoryMarginsCard(
+                        title: 'YTD margins',
+                        categories: categories,
+                        isYtd: true,
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    if (notesView != null) ...[
+                      _notesCard(notesView),
+                      const SizedBox(height: 12),
+                    ],
+
+                    _card(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          TextButton(
+                            onPressed: () => setState(() => _showDebug = !_showDebug),
+                            child: Text(
+                              _showDebug ? 'Hide debug JSON' : 'Show debug JSON',
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ),
+                          if (_showDebug)
+                            Text(
+                              const JsonEncoder.withIndent('  ').convert(json),
+                              style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 12),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          );
-        },
-      ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -267,9 +287,8 @@ class _SnapshotScreenState extends ConsumerState<SnapshotScreen> {
     );
   }
 
-  // ------- Venue picker (SwiftUI style) -------
-
   Widget _venuePicker({
+    required List<Venue> venues,
     required int selectedVenueId,
     required String selectedVenueName,
     required bool canPrev,
@@ -278,17 +297,15 @@ class _SnapshotScreenState extends ConsumerState<SnapshotScreen> {
     required VoidCallback? onPrev,
     required VoidCallback? onNext,
   }) {
-    final venues = _venueList();
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Venue', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
+        Text('Venue', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12)),
         const SizedBox(height: 6),
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: _cardBlue.withOpacity(0.9),
+            color: _cardBlue.withValues(alpha: 0.9),
             borderRadius: BorderRadius.circular(14),
           ),
           child: Row(
@@ -310,7 +327,7 @@ class _SnapshotScreenState extends ConsumerState<SnapshotScreen> {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Icon(Icons.keyboard_arrow_down, color: Colors.white.withOpacity(0.85)),
+                      Icon(Icons.keyboard_arrow_down, color: Colors.white.withValues(alpha: 0.85)),
                     ],
                   ),
                 ),
@@ -321,7 +338,7 @@ class _SnapshotScreenState extends ConsumerState<SnapshotScreen> {
                 icon: Icon(
                   Icons.arrow_circle_left,
                   size: 32,
-                  color: Colors.white.withOpacity(canPrev ? 0.9 : 0.3),
+                  color: Colors.white.withValues(alpha: canPrev ? 0.9 : 0.3),
                 ),
               ),
               IconButton(
@@ -329,7 +346,7 @@ class _SnapshotScreenState extends ConsumerState<SnapshotScreen> {
                 icon: Icon(
                   Icons.arrow_circle_right,
                   size: 32,
-                  color: Colors.white.withOpacity(canNext ? 0.9 : 0.3),
+                  color: Colors.white.withValues(alpha: canNext ? 0.9 : 0.3),
                 ),
               ),
             ],
@@ -338,6 +355,10 @@ class _SnapshotScreenState extends ConsumerState<SnapshotScreen> {
       ],
     );
   }
+
+  // --- keep the rest of your existing Snapshot helpers below unchanged ---
+}
+
 
   // ------- Cards -------
 
@@ -673,7 +694,7 @@ class _SnapshotScreenState extends ConsumerState<SnapshotScreen> {
       child: child,
     );
   }
-}
+
 
 // ------------------ donut painter ------------------
 

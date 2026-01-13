@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/models/venue.dart';
+import '../../app/venues_provider.dart';
+
 import 'category_repository.dart';
 import 'category_type.dart';
 
@@ -51,8 +54,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final venueId = ref.watch(categoryVenueIdProvider);
-    final async = ref.watch(categoryDataProvider(_Args(venueId, _weekEndOverride, widget.category)));
+    final venuesAsync = ref.watch(venuesProvider);
 
     return Scaffold(
       backgroundColor: _bg,
@@ -69,137 +71,168 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
           onPressed: () => context.go('/'),
         ),
       ),
-      body: async.when(
+      body: venuesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => _errorView(err.toString()),
-        data: (json) {
-          final venueName = (json['venueName'] as String?) ?? 'Venue';
-          final weekEndIso = (json['weekEnd'] as String?) ?? '';
-          final prevWeekEndIso = (json['prevWeekEnd'] as String?) ?? '';
-          final nextWeekEndIso = (json['nextWeekEnd'] as String?) ?? '';
+        error: (e, _) => _errorView(e.toString()),
+        data: (venues) {
+          if (venues.isEmpty) {
+            return _errorView('No venues available.');
+          }
 
-          final canPrev = prevWeekEndIso.isNotEmpty;
-          final canNext = nextWeekEndIso.isNotEmpty;
+          final currentId = ref.watch(categoryVenueIdProvider);
+          final safeVenueId = venues.any((v) => v.id == currentId)
+              ? currentId
+              : venues
+                  .firstWhere((v) => v.id == groupVenueId, orElse: () => venues.first)
+                  .id;
 
-          final categories = (json['categories'] as List?)
-                  ?.whereType<Map>()
-                  .map((e) => e.cast<String, dynamic>())
-                  .toList() ??
-              const <Map<String, dynamic>>[];
+          if (safeVenueId != currentId) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              ref.read(categoryVenueIdProvider.notifier).state = safeVenueId;
+            });
+          }
 
-          final metrics = (json['metrics'] as List?)
-                  ?.whereType<Map>()
-                  .map((e) => e.cast<String, dynamic>())
-                  .toList() ??
-              const <Map<String, dynamic>>[];
+          final async = ref.watch(
+            categoryDataProvider(_Args(safeVenueId, _weekEndOverride, widget.category)),
+          );
 
-          final cat = _findCategory(categories, widget.category.apiKey);
-          final metric = _findMetric(metrics, widget.category.apiKey);
+          return async.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => _errorView(err.toString()),
+            data: (json) {
+              final venueName = (json['venueName'] as String?) ??
+                  venues.firstWhere((v) => v.id == safeVenueId, orElse: () => venues.first).name;
 
-          // budgets are derived from metrics % like SwiftUI revenueBudgets()
-          final budgets = _deriveBudgetsFromMetrics(metric);
+              final weekEndIso = (json['weekEnd'] as String?) ?? '';
+              final prevWeekEndIso = (json['prevWeekEnd'] as String?) ?? '';
+              final nextWeekEndIso = (json['nextWeekEnd'] as String?) ?? '';
 
-          // if category missing AND accommodation, do fallback snapshot from metrics
-          final accFallback = (widget.category == CategoryType.accommodation && cat == null && metric != null)
-              ? _buildAccommodationFallback(metric)
-              : null;
+              final canPrev = prevWeekEndIso.isNotEmpty;
+              final canNext = nextWeekEndIso.isNotEmpty;
 
-          return RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(categoryDataProvider);
-              await ref.read(categoryDataProvider(_Args(venueId, _weekEndOverride, widget.category)).future);
-            },
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              children: [
-                _headerBar(
-                  selectedVenueId: venueId,
-                  selectedVenueName: venueName,
-                  canPrev: canPrev,
-                  canNext: canNext,
-                  onPickVenue: (id) {
-                    ref.read(categoryVenueIdProvider.notifier).state = id;
-                    setState(() => _weekEndOverride = null);
-                  },
-                  onPrev: !canPrev ? null : () => setState(() => _weekEndOverride = _toDateOnly(prevWeekEndIso)),
-                  onNext: !canNext ? null : () => setState(() => _weekEndOverride = _toDateOnly(nextWeekEndIso)),
+              final categories = (json['categories'] as List?)
+                      ?.whereType<Map>()
+                      .map((e) => e.cast<String, dynamic>())
+                      .toList() ??
+                  const <Map<String, dynamic>>[];
+
+              final metrics = (json['metrics'] as List?)
+                      ?.whereType<Map>()
+                      .map((e) => e.cast<String, dynamic>())
+                      .toList() ??
+                  const <Map<String, dynamic>>[];
+
+              final cat = _findCategory(categories, widget.category.apiKey);
+              final metric = _findMetric(metrics, widget.category.apiKey);
+
+              final budgets = _deriveBudgetsFromMetrics(metric);
+
+              final accFallback =
+                  (widget.category == CategoryType.accommodation && cat == null && metric != null)
+                      ? _buildAccommodationFallback(metric)
+                      : null;
+
+              return RefreshIndicator(
+                onRefresh: () async {
+                  ref.invalidate(categoryDataProvider);
+                  await ref.read(
+                    categoryDataProvider(_Args(safeVenueId, _weekEndOverride, widget.category)).future,
+                  );
+                },
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                  children: [
+                    _headerBar(
+                      venues: venues,
+                      selectedVenueId: safeVenueId,
+                      selectedVenueName: venueName,
+                      canPrev: canPrev,
+                      canNext: canNext,
+                      onPickVenue: (id) {
+                        ref.read(categoryVenueIdProvider.notifier).state = id;
+                        setState(() => _weekEndOverride = null);
+                      },
+                      onPrev: !canPrev
+                          ? null
+                          : () => setState(() => _weekEndOverride = _toDateOnly(prevWeekEndIso)),
+                      onNext: !canNext
+                          ? null
+                          : () => setState(() => _weekEndOverride = _toDateOnly(nextWeekEndIso)),
+                    ),
+                    const SizedBox(height: 8),
+                    if (weekEndIso.isNotEmpty)
+                      Center(
+                        child: Text(
+                          'Week ending ${_prettyWeekEnd(weekEndIso)}',
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.70), fontSize: 12),
+                        ),
+                      ),
+                    const SizedBox(height: 14),
+                    if (cat != null) ...[
+                      _summaryCard(
+                        title: '${widget.category.title} snapshot',
+                        weeklyRevenue: _asDouble(cat['weeklyRevenue']) ?? 0,
+                        ytdRevenue: _asDouble(cat['ytdRevenue']) ?? 0,
+                        weeklyBudget: budgets.weekly,
+                        ytdBudget: budgets.ytd,
+                        weeklyGp: _asDouble(cat['weeklyGrossProfit']),
+                        ytdGp: _asDouble(cat['ytdGrossProfit']),
+                        weeklyWage: _asDouble(cat['weeklyWagesPercent']),
+                        ytdWage: _asDouble(cat['ytdWagesPercent']),
+                        showWages: widget.category.showsWages,
+                      ),
+                      _detailCard(
+                        weeklyRevenue: _asDouble(cat['weeklyRevenue']) ?? 0,
+                        ytdRevenue: _asDouble(cat['ytdRevenue']) ?? 0,
+                        weeklyBudget: budgets.weekly,
+                        ytdBudget: budgets.ytd,
+                        weeklyGp: _asDouble(cat['weeklyGrossProfit']),
+                        ytdGp: _asDouble(cat['ytdGrossProfit']),
+                        weeklyWage: _asDouble(cat['weeklyWagesPercent']),
+                        ytdWage: _asDouble(cat['ytdWagesPercent']),
+                        showWages: widget.category.showsWages,
+                      ),
+                      _insightsCard(
+                        category: widget.category,
+                        weeklyRevenue: _asDouble(cat['weeklyRevenue']) ?? 0,
+                        ytdRevenue: _asDouble(cat['ytdRevenue']) ?? 0,
+                        weeklyBudget: budgets.weekly,
+                        ytdBudget: budgets.ytd,
+                        weeklyGp: _asDouble(cat['weeklyGrossProfit']),
+                        ytdGp: _asDouble(cat['ytdGrossProfit']),
+                        weeklyWage: _asDouble(cat['weeklyWagesPercent']),
+                        ytdWage: _asDouble(cat['ytdWagesPercent']),
+                      ),
+                    ] else if (accFallback != null) ...[
+                      _summaryCard(
+                        title: '${widget.category.title} snapshot',
+                        weeklyRevenue: accFallback.weeklyRevenue,
+                        ytdRevenue: accFallback.ytdRevenue,
+                        weeklyBudget: accFallback.weeklyBudget,
+                        ytdBudget: accFallback.ytdBudget,
+                        weeklyGp: null,
+                        ytdGp: null,
+                        weeklyWage: null,
+                        ytdWage: null,
+                        showWages: false,
+                        note: 'Note: Accommodation is sourced from summary metrics (GP/Wages not available yet).',
+                        forceNeutralVariance: true,
+                      ),
+                      _detailAccommodationFallback(accFallback),
+                    ] else ...[
+                      Padding(
+                        padding: const EdgeInsets.only(top: 24),
+                        child: Text(
+                          'No data available',
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.70)),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-
-                const SizedBox(height: 8),
-
-                if (weekEndIso.isNotEmpty)
-                  Center(
-                    child: Text(
-                      'Week ending ${_prettyWeekEnd(weekEndIso)}',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.70), fontSize: 12),
-                    ),
-                  ),
-
-                const SizedBox(height: 14),
-
-                if (cat != null) ...[
-                  _summaryCard(
-                    title: '${widget.category.title} snapshot',
-                    weeklyRevenue: _asDouble(cat['weeklyRevenue']) ?? 0,
-                    ytdRevenue: _asDouble(cat['ytdRevenue']) ?? 0,
-                    weeklyBudget: budgets.weekly,
-                    ytdBudget: budgets.ytd,
-                    weeklyGp: _asDouble(cat['weeklyGrossProfit']),
-                    ytdGp: _asDouble(cat['ytdGrossProfit']),
-                    weeklyWage: _asDouble(cat['weeklyWagesPercent']),
-                    ytdWage: _asDouble(cat['ytdWagesPercent']),
-                    showWages: widget.category.showsWages,
-                  ),
-                  _detailCard(
-                    weeklyRevenue: _asDouble(cat['weeklyRevenue']) ?? 0,
-                    ytdRevenue: _asDouble(cat['ytdRevenue']) ?? 0,
-                    weeklyBudget: budgets.weekly,
-                    ytdBudget: budgets.ytd,
-                    weeklyGp: _asDouble(cat['weeklyGrossProfit']),
-                    ytdGp: _asDouble(cat['ytdGrossProfit']),
-                    weeklyWage: _asDouble(cat['weeklyWagesPercent']),
-                    ytdWage: _asDouble(cat['ytdWagesPercent']),
-                    showWages: widget.category.showsWages,
-                  ),
-                  _insightsCard(
-                    category: widget.category,
-                    weeklyRevenue: _asDouble(cat['weeklyRevenue']) ?? 0,
-                    ytdRevenue: _asDouble(cat['ytdRevenue']) ?? 0,
-                    weeklyBudget: budgets.weekly,
-                    ytdBudget: budgets.ytd,
-                    weeklyGp: _asDouble(cat['weeklyGrossProfit']),
-                    ytdGp: _asDouble(cat['ytdGrossProfit']),
-                    weeklyWage: _asDouble(cat['weeklyWagesPercent']),
-                    ytdWage: _asDouble(cat['ytdWagesPercent']),
-                  ),
-                ] else if (accFallback != null) ...[
-                  _summaryCard(
-                    title: '${widget.category.title} snapshot',
-                    weeklyRevenue: accFallback.weeklyRevenue,
-                    ytdRevenue: accFallback.ytdRevenue,
-                    weeklyBudget: accFallback.weeklyBudget,
-                    ytdBudget: accFallback.ytdBudget,
-                    weeklyGp: null,
-                    ytdGp: null,
-                    weeklyWage: null,
-                    ytdWage: null,
-                    showWages: false,
-                    note: 'Note: Accommodation is sourced from summary metrics (GP/Wages not available yet).',
-                    forceNeutralVariance: true,
-                  ),
-                  _detailAccommodationFallback(accFallback),
-                ] else ...[
-                  Padding(
-                    padding: const EdgeInsets.only(top: 24),
-                    child: Text(
-                      'No data available',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.70)),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-              ],
-            ),
+              );
+            },
           );
         },
       ),
@@ -215,9 +248,8 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
     );
   }
 
-  // ---------- header (same as SwiftUI) ----------
-
   Widget _headerBar({
+    required List<Venue> venues,
     required int selectedVenueId,
     required String selectedVenueName,
     required bool canPrev,
@@ -226,8 +258,6 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
     required VoidCallback? onPrev,
     required VoidCallback? onNext,
   }) {
-    final venues = _venueList(); // swap later with shared venue provider/API
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -326,7 +356,6 @@ Widget _summaryCard({
             const SizedBox(height: 10),
             Divider(color: Colors.white.withValues(alpha: 0.15), height: 1),
             const SizedBox(height: 12),
-
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -349,11 +378,9 @@ Widget _summaryCard({
                 ),
               ],
             ),
-
             const SizedBox(height: 12),
             Divider(color: Colors.white.withValues(alpha: 0.15), height: 1),
             const SizedBox(height: 12),
-
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -362,7 +389,6 @@ Widget _summaryCard({
                 Expanded(child: _summaryMetricPercent(title: 'YTD GP%', value: ytdGp)),
               ],
             ),
-
             if (showWages) ...[
               const SizedBox(height: 12),
               Divider(color: Colors.white.withValues(alpha: 0.15), height: 1),
@@ -376,7 +402,6 @@ Widget _summaryCard({
                 ],
               ),
             ],
-
             if (note != null) ...[
               const SizedBox(height: 10),
               Text(note, style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 11)),
@@ -547,7 +572,7 @@ Widget _summaryMetricCurrency({
       const SizedBox(height: 4),
       if (showVariance)
         Text(
-          variance!.text,
+          variance.text,
           style: TextStyle(color: variance.color, fontSize: 12, fontWeight: FontWeight.w600),
         ),
     ],
@@ -560,8 +585,10 @@ Widget _summaryMetricPercent({required String title, required double? value}) {
     children: [
       Text(title, style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14)),
       const SizedBox(height: 6),
-      Text(value == null ? '—' : _pct1Value(value),
-          style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700)),
+      Text(
+        value == null ? '—' : _pct1Value(value),
+        style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
+      ),
     ],
   );
 }
@@ -612,8 +639,6 @@ _Variance? _varianceCurrency(double actual, double? budget) {
   final color = diff >= 0 ? const Color(0xFF61D36B) : const Color(0xFFFF5A5A);
   return _Variance(text, color);
 }
-
-/// ---- budget derivation (metrics) ----
 
 class _Budgets {
   final double? weekly;
@@ -682,8 +707,6 @@ _AccFallback _buildAccommodationFallback(Map<String, dynamic> metric) {
   );
 }
 
-/// ---- finders ----
-
 Map<String, dynamic>? _findCategory(List<Map<String, dynamic>> categories, String key) {
   for (final c in categories) {
     final name = (c['category'] as String?) ?? '';
@@ -699,8 +722,6 @@ Map<String, dynamic>? _findMetric(List<Map<String, dynamic>> metrics, String key
   }
   return null;
 }
-
-/// ---- formatting ----
 
 double? _asDouble(dynamic v) {
   if (v == null) return null;
@@ -754,21 +775,3 @@ String _pct1(double ratio) {
 }
 
 String _pct1Value(double ratio0to1) => '${(ratio0to1 * 100).toStringAsFixed(1)}%';
-
-/// ---- venue list placeholder ----
-
-class _Venue {
-  final int id;
-  final String name;
-  const _Venue(this.id, this.name);
-}
-
-List<_Venue> _venueList() => const [
-  _Venue(26, 'Group'),
-  _Venue(1, 'Lion Hotel'),
-  _Venue(2, 'Cross Keys Hotel'),
-  _Venue(3, 'Saracens Head Hotel'),
-  _Venue(4, 'Cremorne Hotel'),
-  _Venue(5, 'Alma Tavern'),
-  _Venue(6, 'Little Bang Brewery'),
-];

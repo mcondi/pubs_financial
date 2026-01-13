@@ -12,6 +12,11 @@ import '../features/gaming/gaming_screen.dart';
 import '../features/category/category_screen.dart';
 import '../features/category/category_type.dart';
 import '../features/state_of_play/state_of_play_screen.dart';
+import '../features/after_action/after_action_home_screen.dart';
+import '../features/alerts/alerts_screen.dart';
+import '../features/settings/settings_screen.dart';
+import '../features/settings/invite_screen.dart';
+import '../features/settings/user_control_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authTokenProvider);
@@ -31,7 +36,11 @@ GoRoute(path: '/beverage', builder: (_, __) => const CategoryScreen(category: Ca
 GoRoute(path: '/retail', builder: (_, __) => const CategoryScreen(category: CategoryType.retail)),
 GoRoute(path: '/accommodation', builder: (_, __) => const CategoryScreen(category: CategoryType.accommodation)),
 GoRoute(path: '/state-of-play', builder: (_, __) => const StateOfPlayScreen()),
-
+GoRoute(path: '/after-action', builder: (_, __) => const AfterActionHomeScreen()),
+GoRoute(path: '/alerts', builder: (_, __) => const AlertsScreen()),
+GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
+GoRoute(path: '/settings/invite', builder: (_, __) => const InviteScreen()),
+GoRoute(path: '/settings/users', builder: (_, __) => const UserControlScreen()),
     ],
     redirect: (context, state) {
       final loc = state.matchedLocation;

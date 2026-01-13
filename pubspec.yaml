@@ -26,10 +26,12 @@ environment:
 # consider running `flutter pub upgrade --major-versions`. Alternatively,
 # dependencies can be manually updated by changing the version numbers below to
 # the latest version available on pub.dev. To see which dependencies have newer
-# versions available, run `flutter pub outdated`.
+# versions available, ruqn `flutter pub outdated`.
 dependencies:
   flutter:
     sdk: flutter
+  local_auth: ^2.2.0
+  local_auth_ios: ^1.1.0
 
   dio: ^5.4.0
   flutter_secure_storage: ^9.2.2
