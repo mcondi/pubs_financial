@@ -6,7 +6,6 @@ import '../../app/models/venue.dart';
 import '../../app/venues_provider.dart';
 import '../../app/biometrics/biometrics_service.dart';
 import '../../app/providers.dart';
-import 'settings_store.dart';
 
 const _sheetBg = Color(0xFFF2F2F7);
 
@@ -170,12 +169,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             ),
                             trailing: Switch(
                               value: canUse ? useFaceId : false,
-                              onChanged: !canUse
-                                  ? null
-                                  : (v) async {
-                                      ref.read(useFaceIdStateProvider.notifier).state = v;
-                                      await ref.read(settingsStoreProvider).writeUseFaceId(v);
-                                    },
+                             onChanged: !canUse
+    ? null
+    : (v) async {
+        ref.read(useFaceIdStateProvider.notifier).state = v;
+        await ref.read(settingsStoreProvider).writeUseFaceId(v);
+
+        // ✅ Make router pick up the new value immediately
+        ref.invalidate(useFaceIdProvider);
+
+        // ✅ If Face ID turned ON, force unlock flow
+        if (v) {
+          ref.read(isUnlockedProvider.notifier).state = false;
+        }
+      },
+
                             ),
                             onTap: null,
                           ),

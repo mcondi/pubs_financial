@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'models/venue.dart';
-import 'providers.dart'; // apiClientProvider lives here
+import 'package:pubs_financial/app/providers.dart';
 
 final venuesProvider = FutureProvider<List<Venue>>((ref) async {
   ref.keepAlive();

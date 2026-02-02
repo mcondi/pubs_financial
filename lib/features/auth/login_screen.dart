@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../app/providers.dart';
-import '../../core/api_errors.dart';
+import 'package:pubs_financial/app/providers.dart';
+import 'package:pubs_financial/core/api_errors.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -17,6 +17,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _loading = false;
   String? _error;
 
+  bool _useFaceId = false;
+  bool _loadedSetting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFaceIdSetting();
+  }
+
+  Future<void> _loadFaceIdSetting() async {
+    final store = ref.read(settingsStoreProvider);
+    final v = await store.readUseFaceId();
+    if (!mounted) return;
+    setState(() {
+      _useFaceId = v;
+      _loadedSetting = true;
+    });
+  }
+
   @override
   void dispose() {
     _userCtrl.dispose();
@@ -25,17 +44,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _login() async {
+    if (_loading) return;
+
     setState(() {
       _loading = true;
       _error = null;
     });
 
     try {
+      // Save Face ID preference BEFORE routing kicks in
+      await ref.read(settingsStoreProvider).writeUseFaceId(_useFaceId);
+
       await ref.read(authTokenProvider.notifier).login(
             _userCtrl.text.trim(),
             _passCtrl.text,
           );
     } catch (e) {
+      // ✅ CRITICAL: screen may have been popped by router already
+      if (!mounted) return;
+
       setState(() {
         _error = (e is ApiAuthException || e is ApiHttpException)
             ? e.toString()
@@ -60,20 +87,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 24),
-
               TextField(
                 controller: _userCtrl,
                 decoration: const InputDecoration(labelText: 'Email or Username'),
                 textInputAction: TextInputAction.next,
+                enabled: !_loading,
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _passCtrl,
                 decoration: const InputDecoration(labelText: 'Password'),
                 obscureText: true,
+                enabled: !_loading,
                 onSubmitted: (_) => _login(),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+
+              if (_loadedSetting)
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Use Face ID'),
+                  subtitle: const Text('Require Face ID when opening the app'),
+                  value: _useFaceId,
+                  onChanged: _loading ? null : (v) => setState(() => _useFaceId = v),
+                ),
+
+              const SizedBox(height: 12),
 
               if (_error != null)
                 Padding(

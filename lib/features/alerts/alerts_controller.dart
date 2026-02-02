@@ -8,7 +8,7 @@ class AlertsState {
   final bool showSuccess;
   final String? errorMessage;
 
-  // pending payload (like your Swift stored vars)
+  // Pending payload
   final int? venueId;
   final String? venueName;
   final String? notes;
@@ -75,17 +75,23 @@ class AlertsController extends StateNotifier<AlertsState> {
 
   Future<void> confirmSend() async {
     final venueId = state.venueId;
-    final venueName = state.venueName;
-    final notes = state.notes;
 
-    if (venueId == null || venueName == null) return;
+    // Ensure non-null strings for API contract
+    final venueName = (state.venueName ?? 'Unknown Venue').trim();
+    final notes = (state.notes ?? '').trim();
 
-    state = state.copyWith(isSending: true, showConfirm: false, clearError: true);
+    if (venueId == null) return;
+
+    state = state.copyWith(
+      isSending: true,
+      showConfirm: false,
+      clearError: true,
+    );
 
     try {
       await ref.read(alertsRepositoryProvider).sendHealthInspectionAlert(
             venueId: venueId,
-            venueName: venueName,
+            venueName: venueName.isEmpty ? 'Unknown Venue' : venueName,
             notes: notes,
             severity: state.severity,
           );

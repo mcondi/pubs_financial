@@ -63,61 +63,67 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
 
         final venue = venues.firstWhere((v) => v.id == safeVenueId, orElse: () => venues.first);
 
-        final cards = <_AlertCardConfig>[
-          _AlertCardConfig(
-            title: 'Health inspector on site',
-            subtitle:
-                'Notify other venues and support office that an inspector is currently on site at the selected venue.',
-            icon: Icons.warning_amber_rounded,
-            tint: Colors.orange,
-            severity: 'warning',
-            message: 'Health inspector onsite at ${venue.name}',
-          ),
-          _AlertCardConfig(
-            title: 'Gaming compliance onsite',
-            subtitle:
-                'Notify other venues and support office that a gaming compliance officer is currently onsite.',
-            icon: Icons.casino,
-            tint: const Color(0xFFF1C84B),
-            severity: 'info',
-            message: 'Gaming compliance officer onsite at ${venue.name}',
-          ),
-          _AlertCardConfig(
-            title: 'Licensing compliance onsite',
-            subtitle:
-                'Notify other venues and support office that a licensing / liquor compliance officer is onsite.',
-            icon: Icons.description_outlined,
-            tint: const Color(0xFF42A5F5),
-            severity: 'info',
-            message: 'Licensing compliance officer onsite at ${venue.name}',
-          ),
-          _AlertCardConfig(
-            title: 'Police onsite',
-            subtitle: 'Notify Support Office that police are currently onsite at the selected venue.',
-            icon: Icons.shield_outlined,
-            tint: const Color(0xFFFF5A5A),
-            severity: 'warning',
-            message: 'Police onsite at ${venue.name}',
-          ),
-          _AlertCardConfig(
-            title: 'Armed robbery',
-            subtitle:
-                'Call Police (000), this is to notify Support Office of an armed robbery / hold-up at the selected venue for support AFTER YOU, YOUR TEAM AND CUSTOMERS ARE SAFE.',
-            icon: Icons.report_rounded,
-            tint: const Color(0xFFFF5A5A),
-            severity: 'critical',
-            message: 'ARMED ROBBERY / HOLD-UP at ${venue.name}',
-          ),
-          _AlertCardConfig(
-            title: 'Serious injury',
-            subtitle:
-                'Notify Support Office that there is a serious injury / medical emergency at the selected venue.',
-            icon: Icons.local_hospital_outlined,
-            tint: const Color(0xFFFF5A5A),
-            severity: 'critical',
-            message: 'Serious injury / medical emergency at ${venue.name}',
-          ),
-        ];
+       final cards = <_AlertCardConfig>[
+  _AlertCardConfig(
+    type: 'health_inspector',
+    title: 'Health inspector on site',
+    subtitle:
+        'Notify other venues and support office that an inspector is currently on site at the selected venue.',
+    icon: Icons.warning_amber_rounded,
+    tint: Colors.orange,
+    severity: 'warning',
+    message: 'Health inspector onsite at ${venue.name}',
+  ),
+  _AlertCardConfig(
+    type: 'gaming_compliance',
+    title: 'Gaming compliance onsite',
+    subtitle:
+        'Notify other venues and support office that a gaming compliance officer is currently onsite.',
+    icon: Icons.casino,
+    tint: const Color(0xFFF1C84B),
+    severity: 'info',
+    message: 'Gaming compliance officer onsite at ${venue.name}',
+  ),
+  _AlertCardConfig(
+    type: 'licensing_compliance',
+    title: 'Licensing compliance onsite',
+    subtitle:
+        'Notify other venues and support office that a licensing / liquor compliance officer is onsite.',
+    icon: Icons.description_outlined,
+    tint: const Color(0xFF42A5F5),
+    severity: 'info',
+    message: 'Licensing compliance officer onsite at ${venue.name}',
+  ),
+  _AlertCardConfig(
+    type: 'police_onsite',
+    title: 'Police onsite',
+    subtitle: 'Notify Support Office that police are currently onsite at the selected venue.',
+    icon: Icons.shield_outlined,
+    tint: const Color(0xFFFF5A5A),
+    severity: 'warning',
+    message: 'Police onsite at ${venue.name}',
+  ),
+  _AlertCardConfig(
+    type: 'armed_robbery',
+    title: 'Armed robbery',
+    subtitle:
+        'Call Police (000). Notify Support Office of an armed robbery/hold-up AFTER YOU, YOUR TEAM AND CUSTOMERS ARE SAFE.',
+    icon: Icons.report_rounded,
+    tint: const Color(0xFFFF5A5A),
+    severity: 'critical',
+    message: 'ARMED ROBBERY / HOLD-UP at ${venue.name}',
+  ),
+  _AlertCardConfig(
+    type: 'serious_injury',
+    title: 'Serious injury',
+    subtitle:
+        'Notify Support Office that there is a serious injury / medical emergency at the selected venue.',
+    icon: Icons.local_hospital_outlined,
+    tint: const Color(0xFFFF5A5A),
+    severity: 'critical',
+    message: 'Serious injury / medical emergency at ${venue.name}',
+  ),
+];
 
         return Scaffold(
           backgroundColor: _bg,
@@ -200,65 +206,84 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
     );
   }
 
-  Future<void> _confirmAndSend(BuildContext context, Venue venue, _AlertCardConfig c) async {
-    final ok = await showDialog<bool>(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('Notify other venues?'),
-            content: Text('This will send an alert from ${venue.name} to all other venues using this app.'),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('Send'),
-              ),
-            ],
+ Future<void> _confirmAndSend(BuildContext context, Venue venue, _AlertCardConfig c) async {
+  final ok =
+      await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Notify other venues?'),
+          content: Text(
+            'This will send an alert from ${venue.name} to all other venues using this app.',
           ),
-        ) ??
-        false;
-
-    if (!ok) return;
-
-    setState(() => _sending = true);
-
-    try {
-      await ref.read(alertsRepositoryProvider).sendHealthInspectionAlert(
-            venueId: venue.id,
-            venueName: venue.name,
-            notes: c.message,
-            severity: c.severity,
-          );
-
-      if (!mounted) return;
-
-      await showDialog<void>(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Alert sent'),
-          content: Text('Your alert was sent from ${venue.name} to other registered devices.'),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Send'),
+            ),
           ],
         ),
-      );
-    } catch (e) {
-      if (!mounted) return;
+      ) ??
+      false;
 
-      await showDialog<void>(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Failed to send alert'),
-          content: Text(e.toString()),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
-          ],
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _sending = false);
-    }
+  if (!ok) return;
+
+  setState(() => _sending = true);
+
+  try {
+    final pushTitle = c.message;
+    final pushBody = c.subtitle;
+
+    await ref.read(alertsRepositoryProvider).sendAlert(
+          venueId: venue.id,
+          venueName: venue.name,
+          title: pushTitle,
+          body: pushBody,
+          severity: c.severity,
+          type: c.type,
+        );
+
+    // ✅ correct lint-safe check (instead of relying on `mounted`)
+    if (!context.mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Alert sent'),
+        content: Text('Your alert was sent from ${venue.name} to other registered devices.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  } catch (e) {
+    if (!context.mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Failed to send alert'),
+        content: Text(e.toString()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  } finally {
+    if (mounted) setState(() => _sending = false);
   }
+}
+
 
   Widget _alertCard({required _AlertCardConfig config, required VoidCallback? onTap}) {
     return InkWell(
@@ -298,9 +323,9 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
     );
   }
 }
-
 class _AlertCardConfig {
-  final String title;
+  final String type;      // ✅ NEW: stable alert type key
+  final String title;     // card title
   final String subtitle;
   final IconData icon;
   final Color tint;
@@ -308,6 +333,7 @@ class _AlertCardConfig {
   final String message;
 
   const _AlertCardConfig({
+    required this.type,
     required this.title,
     required this.subtitle,
     required this.icon,
@@ -316,3 +342,4 @@ class _AlertCardConfig {
     required this.message,
   });
 }
+

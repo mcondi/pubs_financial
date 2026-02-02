@@ -1,4 +1,4 @@
-package com.example.pubs_financial
+package au.com.duxtonpubs.pubsfinancial
 
 import io.flutter.embedding.android.FlutterActivity
 

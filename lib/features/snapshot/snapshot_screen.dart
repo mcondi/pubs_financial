@@ -406,97 +406,101 @@ class _SnapshotScreenState extends ConsumerState<SnapshotScreen> {
   }
 
   /// ✅ iOS-style donut
-  Widget _donutBudgetChart({
-    required String title,
-    required String actual,
-    required String budget,
-    required double? ratio,
-  }) {
-    final safeRatio = (ratio ?? 0).clamp(0.0, 10.0);
-    final progress = safeRatio.clamp(0.0, 1.0);
-    final tint = _colourForBudgetRatio(ratio);
-    final pct = (safeRatio * 100).round();
+ /// ✅ iOS-style donut
+Widget _donutBudgetChart({
+  required String title,
+  required String actual,
+  required String budget,
+  required double? ratio,
+}) {
+  final safeRatio = (ratio ?? 0).clamp(0.0, 10.0);
+  final progress = safeRatio.clamp(0.0, 1.0);
+  final tint = _colourForBudgetRatio(ratio);
+  final pct = (safeRatio * 100).round();
 
-    return Column(
-      children: [
-        SizedBox(
-          width: 168,
-          height: 168,
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: progress),
-            duration: const Duration(milliseconds: 350),
-            curve: Curves.easeInOut,
-            builder: (context, animProgress, _) {
-              return Stack(
-                alignment: Alignment.center,
-                children: [
-                  CustomPaint(
-                    size: const Size(168, 168),
-                    painter: _DonutRingPainter(
-                      progress: animProgress,
-                      color: tint,
-                      backgroundColor: Colors.white.withOpacity(0.12),
-                      showOverRing: safeRatio > 1.0,
-                      overRingColor: tint.withOpacity(0.35),
-                      strokeWidth: 14,
-                    ),
+  return Column(
+    children: [
+      SizedBox(
+        width: 168,
+        height: 168,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: progress),
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeInOut,
+          builder: (context, animProgress, child) {
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                CustomPaint(
+                  size: const Size(168, 168),
+                  painter: _DonutRingPainter(
+                    progress: animProgress,
+                    color: tint,
+                    backgroundColor: Colors.white.withValues(alpha: 0.12),
+                    showOverRing: safeRatio > 1.0,
+                    overRingColor: tint.withValues(alpha: 0.35),
+                    strokeWidth: 14,
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '$pct%',
-                          style: TextStyle(
-                            color: tint,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '$pct%',
+                        style: TextStyle(
+                          color: tint,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          height: 1.0,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          actual,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
                             height: 1.0,
                           ),
                         ),
-                        const SizedBox(height: 6),
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            actual,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              height: 1.0,
-                            ),
+                      ),
+                      const SizedBox(height: 3),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'of $budget',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.7),
+                            fontSize: 11,
+                            height: 1.0,
                           ),
                         ),
-                        const SizedBox(height: 3),
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            'of $budget',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
-                              fontSize: 11,
-                              height: 1.0,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              );
-            },
-          ),
+                ),
+              ],
+            );
+          },
         ),
-        const SizedBox(height: 8),
-        Text(
-          title,
-          style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12),
-          textAlign: TextAlign.center,
+      ),
+      const SizedBox(height: 8),
+      Text(
+        title,
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.85),
+          fontSize: 12,
         ),
-      ],
-    );
-  }
+        textAlign: TextAlign.center,
+      ),
+    ],
+  );
+}
 
   Widget _snapshotDetailCard({
     required String title,
@@ -519,7 +523,7 @@ class _SnapshotScreenState extends ConsumerState<SnapshotScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(s.totalRevenueValue, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
-                  Text(s.ebitdaValue, style: TextStyle(color: Colors.white.withOpacity(0.92), fontWeight: FontWeight.w800)),
+                  Text(s.ebitdaValue, style: TextStyle(color: Colors.white.withValues(alpha:0.92), fontWeight: FontWeight.w800)),
                 ],
               ),
             ],
@@ -530,18 +534,18 @@ class _SnapshotScreenState extends ConsumerState<SnapshotScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(revenueSublabel, style: TextStyle(color: Colors.white.withOpacity(0.65), fontSize: 11)),
-                Text(ebitdaSublabel, style: TextStyle(color: Colors.white.withOpacity(0.65), fontSize: 11)),
+                Text(revenueSublabel, style: TextStyle(color: Colors.white.withValues(alpha:0.65), fontSize: 11)),
+                Text(ebitdaSublabel, style: TextStyle(color: Colors.white.withValues(alpha:0.65), fontSize: 11)),
               ],
             ),
           ),
           const SizedBox(height: 6),
           Text(
             isYtd ? 'Revenue, EBITDA, wages and gaming (YTD)' : 'Revenue, EBITDA, wages and gaming',
-            style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+            style: TextStyle(color: Colors.white.withValues(alpha:0.7), fontSize: 12),
           ),
           const SizedBox(height: 10),
-          Divider(color: Colors.white.withOpacity(0.15)),
+          Divider(color: Colors.white.withValues(alpha:0.15)),
           _gridRow(isYtd ? 'Revenue budget (YTD)' : 'Revenue budget', s.revenueBudgetValue, 'Revenue vs budget',
               s.revenueVsBudgetPercent, rightColor: _colourForBudgetRatio(s.revenueVsBudgetRatio)),
           _gridRow(isYtd ? 'EBITDA budget (YTD)' : 'EBITDA budget', s.ebitdaBudgetValue, 'EBITDA vs budget',
@@ -596,9 +600,9 @@ class _SnapshotScreenState extends ConsumerState<SnapshotScreen> {
         children: [
           Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
-          Text('GP% and department wages%', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
+          Text('GP% and department wages%', style: TextStyle(color: Colors.white.withValues(alpha:0.7), fontSize: 12)),
           const SizedBox(height: 10),
-          Divider(color: Colors.white.withOpacity(0.15)),
+          Divider(color: Colors.white.withValues(alpha:0.15)),
           _gridRow('Food GP%', foodGp, 'Food wages%', foodW),
           _gridRow('Beverage GP%', bevGp, 'Beverage wages%', bevW),
           _gridRow('Accommodation GP%', accGp, '', ''),
@@ -624,12 +628,12 @@ class _SnapshotScreenState extends ConsumerState<SnapshotScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
+                    color: Colors.white.withValues(alpha:0.15),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
                     notes.category!,
-                    style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 11),
+                    style: TextStyle(color: Colors.white.withValues(alpha:0.9), fontSize: 11),
                   ),
                 ),
             ],
@@ -639,11 +643,11 @@ class _SnapshotScreenState extends ConsumerState<SnapshotScreen> {
             Text(notes.commentText!.trim(), style: const TextStyle(color: Colors.white, fontSize: 13)),
           if ((notes.generalNote ?? '').trim().isNotEmpty) ...[
             const SizedBox(height: 6),
-            Text(notes.generalNote!.trim(), style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 13)),
+            Text(notes.generalNote!.trim(), style: TextStyle(color: Colors.white.withValues(alpha:0.9), fontSize: 13)),
           ],
           if (notes.hashtagsText.trim().isNotEmpty) ...[
             const SizedBox(height: 6),
-            Text(notes.hashtagsText.trim(), style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 11)),
+            Text(notes.hashtagsText.trim(), style: TextStyle(color: Colors.white.withValues(alpha:0.8), fontSize: 11)),
           ],
         ],
       ),
@@ -658,7 +662,7 @@ class _SnapshotScreenState extends ConsumerState<SnapshotScreen> {
           Expanded(
             child: Row(
               children: [
-                Expanded(child: Text(l1, style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12))),
+                Expanded(child: Text(l1, style: TextStyle(color: Colors.white.withValues(alpha:0.7), fontSize: 12))),
                 Text(v1, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
               ],
             ),
@@ -667,7 +671,7 @@ class _SnapshotScreenState extends ConsumerState<SnapshotScreen> {
           Expanded(
             child: Row(
               children: [
-                Expanded(child: Text(l2, style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12))),
+                Expanded(child: Text(l2, style: TextStyle(color: Colors.white.withValues(alpha:0.7), fontSize: 12))),
                 Text(
                   v2,
                   style: TextStyle(
@@ -688,7 +692,7 @@ class _SnapshotScreenState extends ConsumerState<SnapshotScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: _cardBlue.withOpacity(0.9),
+        color: _cardBlue.withValues(alpha:0.9),
         borderRadius: BorderRadius.circular(18),
       ),
       child: child,
@@ -1019,20 +1023,3 @@ String _prettyWeekEnd(String iso) {
   final mon = (m >= 1 && m <= 12) ? months[m - 1] : parts[1];
   return '$day $mon $y';
 }
-
-class _Venue {
-  final int id;
-  final String name;
-  const _Venue(this.id, this.name);
-}
-
-// Swap later with your real venue list (API)
-List<_Venue> _venueList() => const [
-  _Venue(26, 'Group'),
-  _Venue(1, 'Lion Hotel'),
-  _Venue(2, 'Cross Keys Hotel'),
-  _Venue(3, 'Saracens Head Hotel'),
-  _Venue(4, 'Cremorne Hotel'),
-  _Venue(5, 'Alma Tavern'),
-  _Venue(6, 'Little Bang Brewery'),
-];

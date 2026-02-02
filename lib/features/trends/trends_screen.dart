@@ -19,7 +19,7 @@ class TrendsScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Trends')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) {
+        error: (err, stackTrace) {
           final msg = (err is ApiAuthException || err is ApiHttpException) ? err.toString() : '$err';
           return Center(
             child: Padding(
@@ -35,7 +35,7 @@ class TrendsScreen extends ConsumerWidget {
 
           return ListView.separated(
             itemCount: items.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+           separatorBuilder: (context, index) => const Divider(height: 1),
             itemBuilder: (context, i) {
               final v = items[i];
 

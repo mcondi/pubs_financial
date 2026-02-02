@@ -1,48 +1,98 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import '../core/api_client.dart';
-import '../core/token_store.dart';
+import '../core/api_providers.dart'; // tokenStoreProvider + apiClientProvider + secureStorageProvider
 import '../features/auth/auth_repository.dart';
 import '../features/trends/trends_repository.dart';
 import '../features/snapshot/snapshot_repository.dart';
 
+export '../core/api_providers.dart';
 
-final secureStorageProvider = Provider((ref) => const FlutterSecureStorage());
+/// ------------------------------
+/// Repositories
+/// ------------------------------
+final authRepositoryProvider = Provider<AuthRepository>((ref) {
+  return AuthRepository(ref.watch(apiClientProvider));
+});
 
-final tokenStoreProvider = Provider((ref) => TokenStore(ref.watch(secureStorageProvider)));
+final trendsRepositoryProvider = Provider<TrendsRepository>((ref) {
+  return TrendsRepository(ref.watch(apiClientProvider));
+});
 
-final apiClientProvider = Provider((ref) => ApiClient.create(ref.watch(tokenStoreProvider)));
+final snapshotRepositoryProvider = Provider<SnapshotRepository>((ref) {
+  return SnapshotRepository(ref.watch(apiClientProvider));
+});
 
-final authRepositoryProvider = Provider((ref) => AuthRepository(ref.watch(apiClientProvider)));
 
-final trendsRepositoryProvider = Provider((ref) => TrendsRepository(ref.watch(apiClientProvider)));
+class SettingsStore {
+  static const _kDefaultVenueId = 'defaultVenueId';
+  static const _kUseFaceId = 'useFaceId';
 
-final snapshotRepositoryProvider =
-    Provider((ref) => SnapshotRepository(ref.watch(apiClientProvider)));
+  final FlutterSecureStorage storage;
+  SettingsStore(this.storage);
 
-/// Auth controller to keep router redirects synchronous
+  Future<int?> readDefaultVenueId() async {
+    final raw = await storage.read(key: _kDefaultVenueId);
+    if (raw == null || raw.trim().isEmpty) return null;
+    return int.tryParse(raw);
+  }
+
+  Future<void> writeDefaultVenueId(int venueId) async {
+    await storage.write(key: _kDefaultVenueId, value: venueId.toString());
+  }
+
+  Future<bool> readUseFaceId() async {
+    final v = await storage.read(key: _kUseFaceId);
+    return v == 'true';
+  }
+
+  Future<void> writeUseFaceId(bool value) async {
+    await storage.write(key: _kUseFaceId, value: value ? 'true' : 'false');
+  }
+}
+
+final settingsStoreProvider = Provider<SettingsStore>((ref) {
+  // Reuse the SAME secure storage instance as core
+  final storage = ref.watch(secureStorageProvider);
+  return SettingsStore(storage);
+});
+
+final useFaceIdProvider = FutureProvider<bool>((ref) async {
+  return ref.read(settingsStoreProvider).readUseFaceId();
+});
+
+/// ------------------------------
+/// Unlock state (used by unlock screen + router)
+/// ------------------------------
+final isUnlockedProvider = StateProvider<bool>((ref) => false);
+
 final authTokenProvider =
     AsyncNotifierProvider<AuthTokenController, String?>(AuthTokenController.new);
 
 class AuthTokenController extends AsyncNotifier<String?> {
   @override
   Future<String?> build() async {
-    return ref.read(tokenStoreProvider).readToken();
+    // TokenStore.init() is awaited in main() before runApp()
+    return ref.read(tokenStoreProvider).session?.accessToken;
   }
 
   Future<void> login(String emailOrUsername, String password) async {
     state = const AsyncLoading();
-    final token = await ref.read(authRepositoryProvider).login(emailOrUsername, password);
+
+    await ref.read(authRepositoryProvider).login(emailOrUsername, password);
+
+    final token = ref.read(tokenStoreProvider).session?.accessToken;
     state = AsyncData(token);
   }
 
- Future<void> logout() async {
-  await ref.read(tokenStoreProvider).clear();
-  state = const AsyncData(null);
-}
-Future<void> refreshFromStorage() async {
-  final token = await ref.read(tokenStoreProvider).readToken();
-  state = AsyncData(token);
-}
+  Future<void> logout() async {
+    await ref.read(tokenStoreProvider).clear();
+    ref.read(isUnlockedProvider.notifier).state = false;
+    state = const AsyncData(null);
+  }
+
+  Future<void> refreshFromStorage() async {
+    final token = ref.read(tokenStoreProvider).session?.accessToken;
+    state = AsyncData(token);
+  }
 }

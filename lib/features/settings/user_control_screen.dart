@@ -102,7 +102,7 @@ class UserControlScreen extends ConsumerWidget {
                 ),
               );
             },
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            separatorBuilder: (context, index) => const SizedBox(height: 10),
             itemCount: users.length,
           );
         },

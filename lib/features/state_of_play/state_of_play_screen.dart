@@ -88,7 +88,7 @@ class StateOfPlayScreen extends ConsumerWidget {
                       child: ListView.separated(
                         padding: const EdgeInsets.only(top: 6, bottom: 10),
                         itemCount: ordered.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        separatorBuilder: (context, index) => const SizedBox(height: 12),
                         itemBuilder: (context, i) => _StateOfPlayRow(venue: ordered[i]),
                       ),
                     );
@@ -166,7 +166,7 @@ class _StateOfPlayRow extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  venue.venueName,
+                  venue.isGroup ? 'Group' : venue.venueName,
                   style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
                   overflow: TextOverflow.ellipsis,
                 ),

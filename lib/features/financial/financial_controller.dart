@@ -1,12 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'financial_repository.dart';
 
-/// You likely already have these in your app:
-/// - authTokenProvider (String? token)
-/// - venuesProvider (List<Venue>)
-///
-/// If your names differ, just swap them.
-final authTokenProvider = Provider<String?>((ref) => null);
+/// ---------------------------------------------------------------------------
+/// MODELS
+/// ---------------------------------------------------------------------------
 
 class Venue {
   final int id;
@@ -18,7 +15,6 @@ class Venue {
 final venuesProvider = Provider<List<Venue>>((ref) {
   return const [
     Venue(26, 'Group'),
-    // ...
   ];
 });
 
@@ -103,23 +99,23 @@ class FinancialState {
   }
 }
 
+/// ---------------------------------------------------------------------------
+/// CONTROLLER
+/// ---------------------------------------------------------------------------
+
 class FinancialController extends StateNotifier<FinancialState> {
   FinancialController(this.ref)
-      : super(FinancialState(
-          isLoading: true,
-          venueId: ref.read(venuesProvider).first.id,
-          metrics: const [],
-        ));
+      : super(
+          FinancialState(
+            isLoading: true,
+            venueId: ref.read(venuesProvider).first.id,
+            metrics: const [],
+          ),
+        );
 
   final Ref ref;
 
   Future<void> load({int? venueId, String? weekEnd}) async {
-    final token = ref.read(authTokenProvider);
-    if (token == null || token.isEmpty) {
-      state = state.copyWith(isLoading: false, error: 'Not authenticated');
-      return;
-    }
-
     final effectiveVenueId = venueId ?? state.venueId;
 
     state = state.copyWith(
@@ -129,31 +125,31 @@ class FinancialController extends StateNotifier<FinancialState> {
     );
 
     try {
-      final json = await ref.read(financialRepositoryProvider).fetchVenueSummary(
-            venueId: effectiveVenueId,
-            weekEndIsoDate: weekEnd,
-            token: token,
-          );
+      final json =
+          await ref.read(financialRepositoryProvider).fetchVenueSummary(
+                venueId: effectiveVenueId,
+                weekEnd: weekEnd,
+              );
 
-      // JSON keys align with Snapshot work:
-      // weekEnd, prevWeekEnd, nextWeekEnd, metrics[], optional notes
       final weekEndOut = (json['weekEnd'] as String?)?.split('T').first;
       final prevOut = (json['prevWeekEnd'] as String?)?.split('T').first;
       final nextOut = (json['nextWeekEnd'] as String?)?.split('T').first;
 
-      final metricsJson = (json['metrics'] as List? ?? const [])
-          .cast<Map<String, dynamic>>();
+      final metricsJson =
+          (json['metrics'] as List? ?? const []).cast<Map<String, dynamic>>();
 
       final metrics = metricsJson.map((m) {
         final name = (m['metric'] ?? m['name'] ?? '').toString();
 
-        // iOS converts percent/100 => ratio (e.g. 111% => 1.11) :contentReference[oaicite:2]{index=2}
         final weeklyRatio =
             ((m['weeklyPercent'] as num?)?.toDouble() ?? 0) / 100.0;
-        final ytdRatio = ((m['ytdPercent'] as num?)?.toDouble() ?? 0) / 100.0;
+        final ytdRatio =
+            ((m['ytdPercent'] as num?)?.toDouble() ?? 0) / 100.0;
 
-        final weekAmount = _formatCurrency((m['weeklyActual'] as num?)?.toDouble());
-        final ytdAmount = _formatCurrency((m['ytdActual'] as num?)?.toDouble());
+        final weekAmount =
+            _formatCurrency((m['weeklyActual'] as num?)?.toDouble());
+        final ytdAmount =
+            _formatCurrency((m['ytdActual'] as num?)?.toDouble());
 
         return FinancialMetric(
           name: name,
@@ -180,6 +176,7 @@ class FinancialController extends StateNotifier<FinancialState> {
 
       state = state.copyWith(
         isLoading: false,
+        error: null,
         weekEnd: weekEndOut,
         prevWeekEnd: prevOut,
         nextWeekEnd: nextOut,
@@ -187,13 +184,16 @@ class FinancialController extends StateNotifier<FinancialState> {
         notes: notes,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
     }
   }
 
   static String _formatCurrency(double? value) {
     if (value == null) return r'$0';
-    // Keep it simple & iOS-like (no decimals) like your Swift formatter :contentReference[oaicite:3]{index=3}
+
     final v = value.round();
     final s = v.toString().replaceAllMapped(
       RegExp(r'\B(?=(\d{3})+(?!\d))'),
@@ -202,6 +202,10 @@ class FinancialController extends StateNotifier<FinancialState> {
     return '\$$s';
   }
 }
+
+/// ---------------------------------------------------------------------------
+/// PROVIDER
+/// ---------------------------------------------------------------------------
 
 final financialControllerProvider =
     StateNotifierProvider<FinancialController, FinancialState>((ref) {

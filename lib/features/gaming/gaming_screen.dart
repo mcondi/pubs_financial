@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
-import '../../app/providers.dart';
 import '../../app/models/venue.dart';
 import '../../app/venues_provider.dart';
 
@@ -89,7 +87,10 @@ class _GamingScreenState extends ConsumerState<GamingScreen> {
             surfaceTintColor: Colors.white,
             elevation: 0,
             centerTitle: true,
-            title: const Text('Gaming', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
+            title: const Text(
+              'Gaming',
+              style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+            ),
             leading: Padding(
               padding: const EdgeInsets.only(left: 10),
               child: _BackCircleButton(onTap: () => context.go('/')),
@@ -177,69 +178,50 @@ class _GamingScreenState extends ConsumerState<GamingScreen> {
                       rtpTrend: rtpTrend,
                     ),
                     const SizedBox(height: 14),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final w = constraints.maxWidth;
-                        final gap = 12.0;
-                        final cardW = (w - gap) / 2;
+LayoutBuilder(
+  builder: (context, constraints) {
+    final w = constraints.maxWidth;
+    final gap = 12.0;
+    final cardW = (w - gap) / 2;
 
-                        return Wrap(
-                          spacing: gap,
-                          runSpacing: gap,
-                          children: [
-                            SizedBox(
-                              width: cardW,
-                              child: _MetricCardCurrency(
-                                title: 'Turnover',
-                                current: turnoverCurrent,
-                                trend: turnoverTrend,
-                                decimals: 0,
-                                higherIsBetter: true,
-                              ),
-                            ),
-                            SizedBox(
-                              width: cardW,
-                              child: _MetricCardCurrency(
-                                title: 'Wins',
-                                current: winsCurrent,
-                                trend: winsTrend,
-                                decimals: 0,
-                                higherIsBetter: true,
-                              ),
-                            ),
-                            SizedBox(
-                              width: cardW,
-                              child: _MetricCardCurrency(
-                                title: 'Net',
-                                current: netCurrent,
-                                trend: netTrend,
-                                decimals: 0,
-                                higherIsBetter: true,
-                              ),
-                            ),
-                            SizedBox(
-                              width: cardW,
-                              child: _MetricCardPercent(
-                                title: 'RTP',
-                                current: rtpCurrent,
-                                trend: rtpTrend,
-                                higherIsBetter: true,
-                              ),
-                            ),
-                            SizedBox(
-                              width: cardW,
-                              child: _MetricCardCurrency(
-                                title: 'Average Bet',
-                                current: avgBetCurrent,
-                                trend: avgBetTrend,
-                                decimals: 2,
-                                higherIsBetter: true,
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
+    return Wrap(
+      spacing: gap,
+      runSpacing: gap,
+      children: [
+        SizedBox(
+          width: cardW,
+          child: _MetricCardCurrency(
+            title: 'Wins',
+            current: winsCurrent,
+            trend: winsTrend,
+            decimals: 0,
+            higherIsBetter: true,
+          ),
+        ),
+        SizedBox(
+          width: cardW,
+          child: _MetricCardPercent(
+            title: 'Hold',
+            current: holdCurrent,
+            trend: holdTrend,
+            higherIsBetter: true,
+          ),
+        ),
+        SizedBox(
+          width: cardW,
+          child: _MetricCardCurrency(
+            title: 'Average Bet',
+            current: avgBetCurrent,
+            trend: avgBetTrend,
+            decimals: 2,
+            higherIsBetter: true,
+          ),
+        ),
+      ],
+    );
+  },
+),
+
                     const SizedBox(height: 14),
                     _InsightsCard(
                       turnoverCurrent: turnoverCurrent,
@@ -378,8 +360,30 @@ class _HeaderBar extends StatelessWidget {
     );
   }
 }
+class _ScaleDownText extends StatelessWidget {
+  const _ScaleDownText(
+    this.text, {
+    this.style,
+  });
 
-// (rest of your existing Gaming widgets/helpers remain unchanged)
+  final String text;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Text(
+        text,
+        maxLines: 1,
+        softWrap: false,
+        overflow: TextOverflow.visible,
+        style: style,
+      ),
+    );
+  }
+}
 
 
 class _GamingSnapshotCard extends StatelessWidget {
@@ -413,7 +417,10 @@ class _GamingSnapshotCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Gaming snapshot', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+          const Text(
+            'Gaming snapshot',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 10),
           Divider(color: Colors.black.withValues(alpha: 0.08), height: 1),
           const SizedBox(height: 12),
@@ -425,14 +432,13 @@ class _GamingSnapshotCard extends StatelessWidget {
                 child: _SnapBlock(
                   title: 'Turnover',
                   value: _money0(turnoverCurrent),
-                  deltaLine:
-                      '${_signedMoney0(turnoverDiff)} (${_pct1(turnoverPct)}) vs 12-wk avg',
+                  deltaLine: '${_signedMoney0(turnoverDiff)} (${_pct1(turnoverPct)}) vs 12-wk avg',
                   deltaColor: turnoverDiff >= 0 ? const Color(0xFF2E7D32) : const Color(0xFFD32F2F),
                 ),
               ),
               Container(
                 width: 1,
-                height: 76,
+                height: 70,
                 color: Colors.black.withValues(alpha: 0.10),
                 margin: const EdgeInsets.symmetric(horizontal: 14),
               ),
@@ -481,13 +487,25 @@ class _SnapBlock extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: TextStyle(color: Colors.black.withValues(alpha: 0.55), fontSize: 15)),
+        Text(
+          title,
+          style: TextStyle(
+            color: Colors.black.withValues(alpha: 0.55),
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(height: 4),
-        Text(value, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700)),
+
+        _ScaleDownText(
+          value,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, height: 1.05),
+        ),
+
         const SizedBox(height: 4),
         Text(
           deltaLine,
-          style: TextStyle(color: deltaColor, fontSize: 13, fontWeight: FontWeight.w500),
+          style: TextStyle(color: deltaColor, fontSize: 12, fontWeight: FontWeight.w600),
         ),
       ],
     );
@@ -530,37 +548,36 @@ class _MetricCardCurrency extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
               const Spacer(),
-              Icon(
-                arrowDown ? Icons.arrow_downward : Icons.arrow_upward,
-                color: Colors.white,
-                size: 16,
-              ),
-              const SizedBox(width: 6),
               Container(
-                width: 22,
-                height: 22,
+                width: 20,
+                height: 20,
                 decoration: BoxDecoration(color: arrowColor, shape: BoxShape.circle),
                 child: Icon(
                   arrowDown ? Icons.arrow_downward : Icons.arrow_upward,
                   color: Colors.white,
-                  size: 14,
+                  size: 12,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          Text(valueText, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
+
+          _ScaleDownText(
+            valueText,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, height: 1.05),
+          ),
+
           const SizedBox(height: 6),
           Text(
             '12-week avg: $trendText',
-            style: TextStyle(color: Colors.black.withValues(alpha: 0.45), fontSize: 13),
+            style: TextStyle(color: Colors.black.withValues(alpha: 0.45), fontSize: 12),
           ),
           const SizedBox(height: 6),
           Text(
             'vs avg: $diffText (${_pct1(pct.abs())})',
-            style: TextStyle(color: arrowColor, fontSize: 13, fontWeight: FontWeight.w600),
+            style: TextStyle(color: arrowColor, fontSize: 12, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -578,7 +595,7 @@ class _MetricCardPercent extends StatelessWidget {
 
   final String title;
   final double current; // 0..1
-  final double trend;   // 0..1
+  final double trend; // 0..1
   final bool higherIsBetter;
 
   @override
@@ -596,31 +613,36 @@ class _MetricCardPercent extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
               const Spacer(),
               Container(
-                width: 22,
-                height: 22,
+                width: 20,
+                height: 20,
                 decoration: BoxDecoration(color: arrowColor, shape: BoxShape.circle),
                 child: Icon(
                   arrowDown ? Icons.arrow_downward : Icons.arrow_upward,
                   color: Colors.white,
-                  size: 14,
+                  size: 12,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          Text(_pct1Value(current), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
+
+          _ScaleDownText(
+            _pct1Value(current),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, height: 1.05),
+          ),
+
           const SizedBox(height: 6),
           Text(
             '12-week avg: ${_pct1Value(trend)}',
-            style: TextStyle(color: Colors.black.withValues(alpha: 0.45), fontSize: 13),
+            style: TextStyle(color: Colors.black.withValues(alpha: 0.45), fontSize: 12),
           ),
           const SizedBox(height: 6),
           Text(
             'vs avg: ${diff >= 0 ? '+' : ''}${_pct1Value(diff)}',
-            style: TextStyle(color: arrowColor, fontSize: 13, fontWeight: FontWeight.w600),
+            style: TextStyle(color: arrowColor, fontSize: 12, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -680,10 +702,10 @@ class _InsightsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Insights', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+         const Text('Insights', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 10),
           for (final line in lines) ...[
-            Text('• $line', style: const TextStyle(fontSize: 15)),
+            Text('• $line', style: const TextStyle(fontSize: 13, height: 1.35)),
             const SizedBox(height: 6),
           ],
         ],
@@ -796,7 +818,7 @@ String _prettyWeekEnd(String iso) {
   final day = int.tryParse(parts[2]);
   if (y == null || m == null || day == null) return d;
 
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   final mon = (m >= 1 && m <= 12) ? months[m - 1] : parts[1];
   return '$day $mon $y';
 }
@@ -804,7 +826,8 @@ String _prettyWeekEnd(String iso) {
 String _money0(double value) {
   final rounded = value.round();
   final s = rounded.toString();
-  final withCommas = s.replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+  final withCommas =
+      s.replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
   return '\$$withCommas';
 }
 
@@ -813,7 +836,8 @@ String _money2(double value) {
   final parts = fixed.split('.');
   final whole = parts.first;
   final frac = parts.length > 1 ? parts[1] : '00';
-  final withCommas = whole.replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+  final withCommas =
+      whole.replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
   return '\$$withCommas.$frac';
 }
 
@@ -821,23 +845,19 @@ String _signedMoney0(double value) => '${value >= 0 ? '+' : '-'}${_money0(value.
 String _signedMoney2(double value) => '${value >= 0 ? '+' : '-'}${_money2(value.abs())}';
 
 String _pct1(double value) {
-  // value is ratio (e.g. -0.084) -> "-8.4%"
   final v = value * 100;
   final sign = v >= 0 ? '' : '-';
   return '$sign${v.abs().toStringAsFixed(1)}%';
 }
 
 String _pct1Value(double value) {
-  // value is 0..1 (e.g. 0.919) -> "91.9%"
   return '${(value * 100).toStringAsFixed(1)}%';
 }
 
 String _extractMessage(String raw) {
-  // If backend throws {"message":"..."} and it's embedded in exception string
   final idx = raw.indexOf('"message"');
   if (idx == -1) return raw;
 
-  // crude extract: "message":"...."
   final start = raw.indexOf(':', idx);
   if (start == -1) return raw;
 
@@ -857,21 +877,3 @@ String _sanitizeError(String text) {
   }
   return text;
 }
-
-/// ---------- venue list (swap later with your shared list/provider) ----------
-
-class _Venue {
-  final int id;
-  final String name;
-  const _Venue(this.id, this.name);
-}
-
-List<_Venue> _venueList() => const [
-  _Venue(26, 'Group'),
-  _Venue(1, 'Lion Hotel'),
-  _Venue(2, 'Cross Keys Hotel'),
-  _Venue(3, 'Saracens Head Hotel'),
-  _Venue(4, 'Cremorne Hotel'),
-  _Venue(5, 'Alma Tavern'),
-  _Venue(6, 'Little Bang Brewery'),
-];

@@ -563,10 +563,10 @@ Widget _summaryMetricCurrency({
     children: [
       Text(title, style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14)),
       const SizedBox(height: 6),
-      Text(_money2(actual), style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700)),
+      Text(_money0(actual), style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700)),
       const SizedBox(height: 4),
       Text(
-        budget == null ? 'Budget —' : 'Budget ${_money2(budget)}',
+        budget == null ? 'Budget —' : 'Budget ${_money0(budget)}',
         style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
       ),
       const SizedBox(height: 4),

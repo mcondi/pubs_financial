@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/models/venue.dart';
-import '../../app/venues_provider.dart';
+import '../../app/venues_sorted_provider.dart';
 
 import 'financial_repository.dart';
 
@@ -50,7 +50,7 @@ class _FinancialScreenState extends ConsumerState<FinancialScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final venuesAsync = ref.watch(venuesProvider);
+    final venuesAsync = ref.watch(venuesSortedProvider);
 
     return venuesAsync.when(
       loading: () => const Scaffold(
@@ -103,8 +103,10 @@ class _FinancialScreenState extends ConsumerState<FinancialScreen> {
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (err, _) => _errorView(err.toString()),
             data: (json) {
-              final venueName = (json['venueName'] as String?) ??
+              final venueNameRaw = (json['venueName'] as String?) ??
                   venues.firstWhere((v) => v.id == safeVenueId, orElse: () => venues.first).name;
+
+              final venueName = safeVenueId == groupVenueId ? 'Group' : venueNameRaw;
 
               final weekEndIso = (json['weekEnd'] as String?) ?? '';
               final prevWeekEndIso = (json['prevWeekEnd'] as String?) ?? '';
@@ -137,7 +139,7 @@ class _FinancialScreenState extends ConsumerState<FinancialScreen> {
                     ),
                     const SizedBox(height: 14),
                     _venuePicker(
-                      venues: venues,
+                      venues: venues, // ✅ already sorted centrally
                       selectedVenueId: safeVenueId,
                       selectedVenueName: venueName,
                       canPrev: canPrev,
@@ -210,7 +212,10 @@ class _FinancialScreenState extends ConsumerState<FinancialScreen> {
                   initialValue: selectedVenueId,
                   onSelected: onPickVenue,
                   itemBuilder: (context) => venues
-                      .map((v) => PopupMenuItem<int>(value: v.id, child: Text(v.name)))
+                      .map((v) => PopupMenuItem<int>(
+                            value: v.id,
+                            child: Text(v.id == groupVenueId ? 'Group' : v.name),
+                          ))
                       .toList(),
                   child: Row(
                     children: [
@@ -446,7 +451,7 @@ String _prettyWeekEnd(String iso) {
   final day = int.tryParse(parts[2]);
   if (y == null || m == null || day == null) return d;
 
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   final mon = (m >= 1 && m <= 12) ? months[m - 1] : parts[1];
   return '$day $mon $y';
 }

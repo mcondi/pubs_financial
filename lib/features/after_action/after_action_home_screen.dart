@@ -88,7 +88,7 @@ class AfterActionHomeScreen extends ConsumerWidget {
                   ];
                 },
                 loading: () => const [],
-                error: (_, __) => const [],
+               error: (error, stackTrace) => const [],
               ),
 
               const Text('All Reviews',
@@ -103,7 +103,7 @@ class AfterActionHomeScreen extends ConsumerWidget {
                   ],
                 ],
                 loading: () => const [],
-                error: (_, __) => const [],
+               error: (error, stackTrace) => const [],
               ),
             ],
           ],
