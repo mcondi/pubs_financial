@@ -64,7 +64,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '739222407970',
     projectId: 'pubs-financial',
     storageBucket: 'pubs-financial.firebasestorage.app',
-    iosBundleId: 'com.example.pubsFinancial',
+    iosBundleId: 'com.duxtonpubs.pubsfinancial',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -73,7 +73,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '739222407970',
     projectId: 'pubs-financial',
     storageBucket: 'pubs-financial.firebasestorage.app',
-    iosBundleId: 'com.example.pubsFinancial',
+    iosBundleId: 'com.duxtonpubs.pubsfinancial',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

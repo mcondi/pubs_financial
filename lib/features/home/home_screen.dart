@@ -91,214 +91,230 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final refresh = ref.watch(refreshLatestNotificationProvider(_debugUserName));
-    final latest = ref.watch(latestNotificationProvider);
+Widget build(BuildContext context) {
+  final refresh = ref.watch(refreshLatestNotificationProvider(_debugUserName));
+  final latest = ref.watch(latestNotificationProvider);
 
-   return Scaffold(
-  backgroundColor: HomeScreen.background,
-  body: SafeArea(
-    child: Stack(
-      children: [
-        SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 6),
-              const Text(
-                'Duxton Pubs',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 34,
-                  fontWeight: FontWeight.w800,
-                  height: 1.0,
+  return Scaffold(
+    backgroundColor: HomeScreen.background,
+    body: SafeArea(
+      child: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 6),
+                const Text(
+                  'Duxton Pubs',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 34,
+                    fontWeight: FontWeight.w800,
+                    height: 1.0,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Pubs Financial',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.1,
+                const SizedBox(height: 2),
+                Text(
+                  'Pubs Financial',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.1,
+                  ),
                 ),
-              ),
 
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-              _buildLatestNotificationCard(
-                context: context,
-                refresh: refresh,
-                latest: latest,
-              ),
+                _buildLatestNotificationCard(
+                  context: context,
+                  refresh: refresh,
+                  latest: latest,
+                ),
 
-              const SizedBox(height: 12),
+                const SizedBox(height: 12),
 
-              // ---- Performance ----
-              _sectionHeader('Performance'),
-              GridView.count(
-                crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                childAspectRatio: 3.3,
-                children: [
-                  _HomeCard(
-                    title: 'Snapshot',
-                    icon: Icons.pie_chart,
-                    tint: Colors.purple,
-                    onTap: () => context.go('/snapshot'),
-                  ),
-                  _HomeCard(
-                    title: 'Financial',
-                    icon: Icons.bar_chart,
-                    tint: const Color.fromRGBO(92, 188, 125, 1),
-                    onTap: () => context.go('/financial'),
-                  ),
-                  _HomeCard(
-                    title: 'Trends',
-                    icon: Icons.show_chart,
-                    tint: const Color.fromRGBO(244, 195, 64, 1),
-                    onTap: () => context.go('/trends'),
-                  ),
-                  _HomeCard(
-                    title: 'Gaming',
-                    icon: Icons.casino,
-                    tint: Colors.orange,
-                    onTap: () => context.go('/gaming'),
-                  ),
-                ],
-              ),
+                // ---- Performance ----
+                _sectionHeader('Performance'),
+                GridView.count(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  childAspectRatio: 3.3,
+                  children: [
+                    _HomeCard(
+                      title: 'Snapshot',
+                      icon: Icons.pie_chart,
+                      tint: Colors.purple,
+                      onTap: () => context.go('/snapshot'),
+                    ),
+                    _HomeCard(
+                      title: 'Financial',
+                      icon: Icons.bar_chart,
+                      tint: const Color.fromRGBO(92, 188, 125, 1),
+                      onTap: () => context.go('/financial'),
+                    ),
+                    _HomeCard(
+                      title: 'Trends',
+                      icon: Icons.show_chart,
+                      tint: const Color.fromRGBO(244, 195, 64, 1),
+                      onTap: () => context.go('/trends'),
+                    ),
+                    _HomeCard(
+                      title: 'Gaming',
+                      icon: Icons.casino,
+                      tint: Colors.orange,
+                      onTap: () => context.go('/gaming'),
+                    ),
+                  ],
+                ),
 
-              // ---- Operations ----
-              _sectionHeader('Operations'),
-              GridView.count(
-                crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                childAspectRatio: 3.3,
-                children: [
-                  _HomeCard(
-                    title: 'Food',
-                    icon: Icons.restaurant,
-                    tint: Colors.cyan,
-                    onTap: () => context.go('/food'),
-                  ),
-                  _HomeCard(
-                    title: 'Beverage',
-                    icon: Icons.wine_bar,
-                    tint: Colors.cyan,
-                    onTap: () => context.go('/beverage'),
-                  ),
-                  _HomeCard(
-                    title: 'Retail',
-                    icon: Icons.shopping_bag,
-                    tint: Colors.cyan,
-                    onTap: () => context.go('/retail'),
-                  ),
-                  _HomeCard(
-                    title: 'Accommodation',
-                    icon: Icons.bed,
-                    tint: Colors.cyan,
-                    onTap: () => context.go('/accommodation'),
-                  ),
-                ],
-              ),
+                // ---- Operations ----
+                _sectionHeader('Operations'),
+                GridView.count(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  childAspectRatio: 3.3,
+                  children: [
+                    _HomeCard(
+                      title: 'Food',
+                      icon: Icons.restaurant,
+                      tint: Colors.cyan,
+                      onTap: () => context.go('/food'),
+                    ),
+                    _HomeCard(
+                      title: 'Beverage',
+                      icon: Icons.wine_bar,
+                      tint: Colors.cyan,
+                      onTap: () => context.go('/beverage'),
+                    ),
+                    _HomeCard(
+                      title: 'Retail',
+                      icon: Icons.shopping_bag,
+                      tint: Colors.cyan,
+                      onTap: () => context.go('/retail'),
+                    ),
+                    _HomeCard(
+                      title: 'Accommodation',
+                      icon: Icons.bed,
+                      tint: Colors.cyan,
+                      onTap: () => context.go('/accommodation'),
+                    ),
+                    _HomeCard(
+                      title: 'Stock',
+                      icon: Icons.inventory_2_outlined,
+                      tint: const Color.fromRGBO(244, 195, 64, 1),
+                      onTap: () => context.go('/stock'),
+                    ),
+                  ],
+                ),
 
-              // ---- Governance ----
-              _sectionHeader('Governance'),
-              GridView.count(
-                crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                childAspectRatio: 3.3,
-                children: [
+                // ---- Governance ----
+                _sectionHeader('Governance'),
+                GridView.count(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  childAspectRatio: 3.3,
+                  children: [
+                    _HomeCard(
+                      title: 'State of Play',
+                      icon: Icons.speed,
+                      tint: Colors.purple,
+                      onTap: () => context.go('/state-of-play'),
+                    ),
+                    _HomeCard(
+                      title: 'Weekly Notes',
+                      icon: Icons.sticky_note_2,
+                      tint: Colors.blueAccent,
+                      onTap: () => context.go('/weekly-notes'),
+                    ),
+                    _HomeCard(
+                      title: 'Weekly Comms',
+                      icon: Icons.campaign,
+                      tint: Colors.indigoAccent,
+                      onTap: () => context.go('/weekly-communication'),
+                    ),
+                    _HomeCard(
+                      title: 'After Action',
+                      icon: Icons.checklist,
+                      tint: Colors.tealAccent,
+                      isSecondary: true,
+                      onTap: () => context.go('/after-action'),
+                    ),
+                    _HomeCard(
+                      title: 'Projects',
+                      icon: Icons.folder_open,
+                      tint: Colors.tealAccent,
+                      isSecondary: true,
+                      onTap: () => context.go('/projects'),
+                    ),
                   _HomeCard(
-                    title: 'State of Play',
-                    icon: Icons.speed,
-                    tint: Colors.purple,
-                    onTap: () => context.go('/state-of-play'),
-                  ),
-                  _HomeCard(
-                    title: 'Weekly Notes',
-                    icon: Icons.sticky_note_2,
-                    tint: Colors.blueAccent,
-                    onTap: () => context.go('/weekly-notes'),
-                  ),
-                  _HomeCard(
-                    title: 'Weekly Comms',
-                    icon: Icons.campaign,
-                    tint: Colors.indigoAccent,
-                    onTap: () => context.go('/weekly-communication'),
-                  ),
-                  _HomeCard(
-                    title: 'After Action',
-                    icon: Icons.checklist,
-                    tint: Colors.tealAccent,
-                    isSecondary: true,
-                    onTap: () => context.go('/after-action'),
-                  ),
-                  _HomeCard(
-                    title: 'Projects',
-                    icon: Icons.folder_open,
-                    tint: Colors.tealAccent,
-                    isSecondary: true,
-                    onTap: () => context.go('/projects'),
-                  ),
-                  _HomeCard(
-                    title: 'Alerts',
-                    icon: Icons.notifications_active,
-                    tint: Colors.pink,
-                    isAlert: true,
-                    onTap: () => context.go('/alerts'),
-                  ),
-                  _HomeCard(
-                    title: 'Feedback',
-                    icon: Icons.feedback_outlined,
-                    tint: Colors.teal,
-                    onTap: () => context.go('/feedback'),
-                  ),
-                ],
-              ),
+  title: 'Alerts',
+  icon: Icons.notifications_active,
+  tint: Colors.pink,
+  isAlert: true,
+  onTap: () => context.go('/alerts'),
+),
+_HomeCard(
+  title: 'SevenRooms Review',
+  icon: Icons.fact_check_outlined,
+  tint: Colors.lightBlueAccent,
+  onTap: () => context.go('/sevenrooms-review'),
+),
+_HomeCard(
+  title: 'Feedback',
+  icon: Icons.feedback_outlined,
+  tint: Colors.teal,
+  onTap: () => context.go('/feedback'),
+),
 
-              const SizedBox(height: 18),
-            ],
+
+                  ],
+                ),
+
+                const SizedBox(height: 18),
+              ],
+            ),
           ),
-        ),
 
-        Positioned(
-          top: 16,
-          right: 20,
-          child: Material(
-            color: HomeScreen.cardBlue.withValues(alpha: 0.95),
-            shape: const CircleBorder(),
-            elevation: 4,
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: () => context.go('/settings'),
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Icon(
-                  Icons.settings,
-                  color: Colors.white.withValues(alpha: 0.9),
-                  size: 20,
+          // ✅ Settings button belongs here (Stack child), not inside Column
+          Positioned(
+            top: 16,
+            right: 20,
+            child: Material(
+              color: HomeScreen.cardBlue.withValues(alpha: 0.95),
+              shape: const CircleBorder(),
+              elevation: 4,
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () => context.go('/settings'),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Icon(
+                    Icons.settings,
+                    color: Colors.white.withValues(alpha: 0.9),
+                    size: 20,
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     ),
-  ),
-);
-  }
+  );
+}
+
 
   Widget _buildLatestNotificationCard({
     required BuildContext context,

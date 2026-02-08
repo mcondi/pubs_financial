@@ -5,6 +5,8 @@ import '../core/api_providers.dart'; // tokenStoreProvider + apiClientProvider +
 import '../features/auth/auth_repository.dart';
 import '../features/trends/trends_repository.dart';
 import '../features/snapshot/snapshot_repository.dart';
+import 'package:pubs_financial/features/stock/data/stock_repository.dart';
+import '../features/sevenrooms_review/data/sevenrooms_review_repository.dart';
 
 export '../core/api_providers.dart';
 
@@ -23,6 +25,12 @@ final snapshotRepositoryProvider = Provider<SnapshotRepository>((ref) {
   return SnapshotRepository(ref.watch(apiClientProvider));
 });
 
+// ✅ Stock repository provider (TOP-LEVEL)
+final stockRepositoryProvider = Provider<StockRepository>((ref) {
+  final api = ref.watch(apiClientProvider);
+  // ApiClient in your app is passed into repos above; it likely exposes dio.
+  return StockRepository(api.dio);
+});
 
 class SettingsStore {
   static const _kDefaultVenueId = 'defaultVenueId';
@@ -52,7 +60,6 @@ class SettingsStore {
 }
 
 final settingsStoreProvider = Provider<SettingsStore>((ref) {
-  // Reuse the SAME secure storage instance as core
   final storage = ref.watch(secureStorageProvider);
   return SettingsStore(storage);
 });
@@ -61,9 +68,6 @@ final useFaceIdProvider = FutureProvider<bool>((ref) async {
   return ref.read(settingsStoreProvider).readUseFaceId();
 });
 
-/// ------------------------------
-/// Unlock state (used by unlock screen + router)
-/// ------------------------------
 final isUnlockedProvider = StateProvider<bool>((ref) => false);
 
 final authTokenProvider =
@@ -72,15 +76,12 @@ final authTokenProvider =
 class AuthTokenController extends AsyncNotifier<String?> {
   @override
   Future<String?> build() async {
-    // TokenStore.init() is awaited in main() before runApp()
     return ref.read(tokenStoreProvider).session?.accessToken;
   }
 
   Future<void> login(String emailOrUsername, String password) async {
     state = const AsyncLoading();
-
     await ref.read(authRepositoryProvider).login(emailOrUsername, password);
-
     final token = ref.read(tokenStoreProvider).session?.accessToken;
     state = AsyncData(token);
   }
@@ -96,3 +97,11 @@ class AuthTokenController extends AsyncNotifier<String?> {
     state = AsyncData(token);
   }
 }
+  final sevenRoomsReviewRepositoryProvider = Provider<SevenRoomsReviewRepository>((ref) {
+  final api = ref.watch(apiClientProvider);
+  return SevenRoomsReviewRepository(api);
+});
+
+
+
+

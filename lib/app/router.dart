@@ -36,6 +36,10 @@ import '../features/alerts/alerts_screen.dart';
 import '../features/feedback/feedback_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/common/coming_soon_screen.dart';
+import 'package:pubs_financial/features/stock/ui/stock_screen.dart';
+import '../features/sevenrooms_review/ui/sevenrooms_review_start_screen.dart';
+import '../features/sevenrooms_review/ui/sevenrooms_review_form_screen.dart';
+import '../features/sevenrooms_review/ui/sevenrooms_review_summary_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authTokenProvider);
@@ -81,7 +85,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/unlock', builder: (_, __) => const UnlockScreen()),
 
       // ---- Home ----
-      GoRoute(path: '/', builder: (_, __) => const HomeScreen()),
+      GoRoute(path: '/', builder: (_, __) => HomeScreen()),
 
       // ---- Performance ----
       GoRoute(path: '/snapshot', builder: (_, __) => const SnapshotScreen()),
@@ -155,6 +159,26 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/alerts', builder: (_, __) => const AlertsScreen()),
       GoRoute(path: '/feedback', builder: (_, __) => const FeedbackScreen()),
       GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
+
+      GoRoute(
+  path: '/stock',
+  name: 'stock',
+  builder: (context, state) => const StockScreen(),
+),
+GoRoute(
+  path: '/sevenrooms-review',
+  builder: (_, __) => const SevenRoomsReviewStartScreen(),
+),
+GoRoute(
+  path: '/sevenrooms-review/form',
+  builder: (_, __) => const SevenRoomsReviewFormScreen(),
+),
+GoRoute(
+  path: '/sevenrooms-review/summary',
+  builder: (_, __) => const SevenRoomsReviewSummaryScreen(),
+),
+
+
     ],
   );
 });
